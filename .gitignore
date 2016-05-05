@@ -60,3 +60,9 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
+# OS X
+.DS_Store
+
+# PyCharm
+.idea
