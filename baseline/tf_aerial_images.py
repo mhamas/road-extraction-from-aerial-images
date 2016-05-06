@@ -10,23 +10,28 @@ import urllib
 import matplotlib.image as mpimg
 from PIL import Image
 
+import csv
+import time
 import code
-
 import tensorflow.python.platform
-
 import numpy as np
 import tensorflow as tf
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 20
+TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 123  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 5
-RESTORE_MODEL = False # If True, restore existing model instead of training a new one
+NUM_EPOCHS = 3
+RESTORE_MODEL = True # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
+
+VISUALIZE_PREDICTION_ON_TRAINING_SET = False
+
+RUN_ON_TEST_SET = True
+TEST_SIZE = 50
 
 # Set image patch size
 # IMG_PATCH_SIZE should be a multiple of 4
@@ -182,10 +187,9 @@ def make_img_overlay(img, predicted_img):
 
 
 def main(argv=None):  # pylint: disable=unused-argument
-
-    data_dir = 'data/training/'
-    train_data_filename = data_dir + 'images/'
-    train_labels_filename = data_dir + 'groundtruth/' 
+    train_data_filename = 'data/training/images/'
+    train_labels_filename = 'data/training/groundtruth/'
+    test_data_filename = 'data/test_set/'
 
     # Extract it into np arrays.
     train_data = extract_data(train_data_filename, TRAINING_SIZE)
@@ -292,9 +296,20 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         return img_prediction
 
+    # Get test prediction
+    def get_prediction_test(image_idx, overlay = False):
+        imageid = "test_%d" % image_idx
+        image_filename = test_data_filename + imageid + ".png"
+        img = mpimg.imread(image_filename)
+        img_prediction = get_prediction(img)
+
+        if overlay:
+            img_prediction = make_img_overlay(img, img_prediction)
+
+        return img_prediction
+    
     # Get a concatenation of the prediction and groundtruth for given input file
     def get_prediction_with_groundtruth(filename, image_idx):
-
         imageid = "satImage_%.3d" % image_idx
         image_filename = filename + imageid + ".png"
         img = mpimg.imread(image_filename)
@@ -306,7 +321,6 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Get prediction overlaid on the original image for given input file
     def get_prediction_with_overlay(filename, image_idx):
-
         imageid = "satImage_%.3d" % image_idx
         image_filename = filename + imageid + ".png"
         img = mpimg.imread(image_filename)
@@ -363,10 +377,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         # Fully connected layer. Note that the '+' operation automatically
         # broadcasts the biases.
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
-        # Add a 50% dropout during training only. Dropout also scales
+        # Add a 70% dropout during training only. Dropout also scales
         # activations such that no rescaling is needed at evaluation time.
-        #if train:
-        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        if train:
+           hidden = tf.nn.dropout(hidden, 0.7, seed=SEED)
         out = tf.matmul(hidden, fc2_weights) + fc2_biases
 
         if train == True:
@@ -451,9 +465,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
 
             training_indices = range(train_size)
-
+            start = time.time()
             for iepoch in range(num_epochs):
-
                 # Permute training indices
                 perm_indices = np.random.permutation(training_indices)
 
@@ -486,6 +499,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                         print ('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
                         print ('Minibatch error: %.1f%%' % error_rate(predictions,
                                                                      batch_labels))
+                        end = time.time()
+                        print("Time elapsed: %.3f" %(end - start))
                         sys.stdout.flush()
                     else:
                         # Run the graph and fetch some of the nodes.
@@ -498,15 +513,45 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print("Model saved in file: %s" % save_path)
 
 
-        print ("Running prediction on training set")
-        prediction_training_dir = "predictions_training/"
-        if not os.path.isdir(prediction_training_dir):
-            os.mkdir(prediction_training_dir)
-        for i in range(1, TRAINING_SIZE+1):
-            pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+        if VISUALIZE_PREDICTION_ON_TRAINING_SET:
+            print ("Running prediction on training set")
+            prediction_training_dir = "predictions_training/"
+            if not os.path.isdir(prediction_training_dir):
+                os.mkdir(prediction_training_dir)
+            for i in range(1, TRAINING_SIZE + 1):
+                pimg = get_prediction_with_groundtruth(train_data_filename, i)
+                Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
+                oimg = get_prediction_with_overlay(train_data_filename, i)
+                oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+
+        if (RUN_ON_TEST_SET):
+            print ("Running prediction on test set")
+            prediction_test_dir = "predictions_test/"
+            if not os.path.isdir(prediction_test_dir):
+                os.mkdir(prediction_test_dir)
+
+            with open('submission.csv', 'w') as csvfile:
+                writer = csv.writer(csvfile, delimiter=' ')
+                writer.writerow(['id',',','prediction'])
+                for i in range(1, TEST_SIZE + 1):
+                    print("Test img: " + str(i))
+                    # Visualization
+                    pimg = get_prediction_test(i, True)
+                    pimg.save(prediction_test_dir + "test" + str(i) + ".png")
+
+                    # Construction of the submission file
+                    prediction = get_prediction_test(i);
+                    prediction = prediction.astype(np.int)
+                    num_rows = prediction.shape[0]
+                    num_cols = prediction.shape[1]
+                    rows_out = np.empty((0,3))
+                    for x in range(0, num_cols, IMG_PATCH_SIZE):
+                        for y in range(0, num_rows, IMG_PATCH_SIZE):
+                            id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
+                            next_row = np.array([[id, ',', str(prediction[x,y])]])
+                            rows_out = np.concatenate((rows_out, next_row))
+                    writer.writerows(rows_out)
+            csvfile.close()
 
 if __name__ == '__main__':
     tf.app.run()
