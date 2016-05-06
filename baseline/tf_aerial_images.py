@@ -3,8 +3,6 @@ Baseline for CIL project on road segmentation.
 This simple baseline consits of a CNN with two convolutional+pooling layers with a soft-max loss
 """
 
-
-
 import gzip
 import os
 import sys
@@ -16,7 +14,7 @@ import code
 
 import tensorflow.python.platform
 
-import numpy
+import numpy as np
 import tensorflow as tf
 
 NUM_CHANNELS = 3 # RGB images
@@ -24,7 +22,7 @@ PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 20
 VALIDATION_SIZE = 5  # Size of the validation set.
-SEED = 66478  # Set to None for random seed.
+SEED = 123  # Set to None for random seed.
 BATCH_SIZE = 16 # 64
 NUM_EPOCHS = 5
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
@@ -35,7 +33,7 @@ RECORDING_STEP = 1000
 # image size should be an integer multiple of this number!
 IMG_PATCH_SIZE = 16
 
-tf.app.flags.DEFINE_string('train_dir', '/tmp/mnist',
+tf.app.flags.DEFINE_string('train_dir', 'tmp/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 FLAGS = tf.app.flags.FLAGS
@@ -78,12 +76,12 @@ def extract_data(filename, num_images):
     img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
 
-    return numpy.asarray(data)
+    return np.asarray(data)
         
 # Assign a label to a patch v
 def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
-    df = numpy.sum(v)
+    df = np.sum(v)
     if df > foreground_threshold:
         return [0, 1]
     else:
@@ -105,24 +103,24 @@ def extract_labels(filename, num_images):
 
     num_images = len(gt_imgs)
     gt_patches = [img_crop(gt_imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
-    data = numpy.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
-    labels = numpy.asarray([value_to_class(numpy.mean(data[i])) for i in range(len(data))])
+    data = np.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
+    labels = np.asarray([value_to_class(np.mean(data[i])) for i in range(len(data))])
 
     # Convert to dense 1-hot representation.
-    return labels.astype(numpy.float32)
+    return labels.astype(np.float32)
 
 
 def error_rate(predictions, labels):
     """Return the error rate based on dense predictions and 1-hot labels."""
     return 100.0 - (
         100.0 *
-        numpy.sum(numpy.argmax(predictions, 1) == numpy.argmax(labels, 1)) /
+        np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) /
         predictions.shape[0])
 
 # Write predictions from neural network to a file
 def write_predictions_to_file(predictions, labels, filename):
-    max_labels = numpy.argmax(labels, 1)
-    max_predictions = numpy.argmax(predictions, 1)
+    max_labels = np.argmax(labels, 1)
+    max_predictions = np.argmax(predictions, 1)
     file = open(filename, "w")
     n = predictions.shape[0]
     for i in range(0, n):
@@ -131,13 +129,13 @@ def write_predictions_to_file(predictions, labels, filename):
 
 # Print predictions from neural network
 def print_predictions(predictions, labels):
-    max_labels = numpy.argmax(labels, 1)
-    max_predictions = numpy.argmax(predictions, 1)
+    max_labels = np.argmax(labels, 1)
+    max_predictions = np.argmax(predictions, 1)
     print (str(max_labels) + ' ' + str(max_predictions))
 
 # Convert array of labels to an image
 def label_to_img(imgwidth, imgheight, w, h, labels):
-    array_labels = numpy.zeros([imgwidth, imgheight])
+    array_labels = np.zeros([imgwidth, imgheight])
     idx = 0
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
@@ -150,8 +148,8 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     return array_labels
 
 def img_float_to_uint8(img):
-    rimg = img - numpy.min(img)
-    rimg = (rimg / numpy.max(rimg) * PIXEL_DEPTH).round().astype(numpy.uint8)
+    rimg = img - np.min(img)
+    rimg = (rimg / np.max(rimg) * PIXEL_DEPTH).round().astype(np.uint8)
     return rimg
 
 def concatenate_images(img, gt_img):
@@ -159,21 +157,21 @@ def concatenate_images(img, gt_img):
     w = gt_img.shape[0]
     h = gt_img.shape[1]
     if nChannels == 3:
-        cimg = numpy.concatenate((img, gt_img), axis=1)
+        cimg = np.concatenate((img, gt_img), axis=1)
     else:
-        gt_img_3c = numpy.zeros((w, h, 3), dtype=numpy.uint8)
+        gt_img_3c = np.zeros((w, h, 3), dtype=np.uint8)
         gt_img8 = img_float_to_uint8(gt_img)          
         gt_img_3c[:,:,0] = gt_img8
         gt_img_3c[:,:,1] = gt_img8
         gt_img_3c[:,:,2] = gt_img8
         img8 = img_float_to_uint8(img)
-        cimg = numpy.concatenate((img8, gt_img_3c), axis=1)
+        cimg = np.concatenate((img8, gt_img_3c), axis=1)
     return cimg
 
 def make_img_overlay(img, predicted_img):
     w = img.shape[0]
     h = img.shape[1]
-    color_mask = numpy.zeros((w, h, 3), dtype=numpy.uint8)
+    color_mask = np.zeros((w, h, 3), dtype=np.uint8)
     color_mask[:,:,0] = predicted_img*PIXEL_DEPTH
 
     img8 = img_float_to_uint8(img)
@@ -185,11 +183,11 @@ def make_img_overlay(img, predicted_img):
 
 def main(argv=None):  # pylint: disable=unused-argument
 
-    data_dir = 'training/'
+    data_dir = 'data/training/'
     train_data_filename = data_dir + 'images/'
     train_labels_filename = data_dir + 'groundtruth/' 
 
-    # Extract it into numpy arrays.
+    # Extract it into np arrays.
     train_data = extract_data(train_data_filename, TRAINING_SIZE)
     train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
 
@@ -216,7 +214,6 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
     train_size = train_labels.shape[0]
-
     c0 = 0
     c1 = 0
     for i in range(len(train_labels)):
@@ -287,7 +284,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Get prediction for given input image 
     def get_prediction(img):
-        data = numpy.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
+        data = np.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
         data_node = tf.constant(data)
         output = tf.nn.softmax(model(data_node))
         output_prediction = s.run(output)
@@ -436,8 +433,6 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Create a local session to run this computation.
     with tf.Session() as s:
-
-
         if RESTORE_MODEL:
             # Restore variables from disk.
             saver.restore(s, FLAGS.train_dir + "/model.ckpt")
@@ -460,7 +455,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             for iepoch in range(num_epochs):
 
                 # Permute training indices
-                perm_indices = numpy.random.permutation(training_indices)
+                perm_indices = np.random.permutation(training_indices)
 
                 for step in range (int(train_size / BATCH_SIZE)):
 
@@ -471,7 +466,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Note that we could use better randomization across epochs.
                     batch_data = train_data[batch_indices, :, :, :]
                     batch_labels = train_labels[batch_indices]
-                    # This dictionary maps the batch data (as a numpy array) to the
+                    # This dictionary maps the batch data (as a np array) to the
                     # node in the graph is should be fed to.
                     feed_dict = {train_data_node: batch_data,
                                  train_labels_node: batch_labels}
@@ -487,11 +482,10 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                         # print_predictions(predictions, batch_labels)
 
-                        print ('Epoch %.2f' % (float(step) * BATCH_SIZE / train_size))
+                        print ('Epoch %d / %d' % (iepoch, num_epochs))
                         print ('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
                         print ('Minibatch error: %.1f%%' % error_rate(predictions,
                                                                      batch_labels))
-
                         sys.stdout.flush()
                     else:
                         # Run the graph and fetch some of the nodes.
