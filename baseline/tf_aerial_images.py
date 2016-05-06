@@ -23,12 +23,12 @@ NUM_LABELS = 2
 TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 123  # Set to None for random seed.
-BATCH_SIZE = 16 # 64
-NUM_EPOCHS = 3
-RESTORE_MODEL = True # If True, restore existing model instead of training a new one
+BATCH_SIZE = 64 # 64
+NUM_EPOCHS = 50
+RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = False
+VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 
 RUN_ON_TEST_SET = True
 TEST_SIZE = 50
@@ -531,8 +531,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                 os.mkdir(prediction_test_dir)
 
             with open('submission.csv', 'w') as csvfile:
-                writer = csv.writer(csvfile, delimiter=' ')
-                writer.writerow(['id',',','prediction'])
+                writer = csv.writer(csvfile, delimiter=',')
+                writer.writerow(['id','prediction'])
                 for i in range(1, TEST_SIZE + 1):
                     print("Test img: " + str(i))
                     # Visualization
@@ -544,11 +544,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                     prediction = prediction.astype(np.int)
                     num_rows = prediction.shape[0]
                     num_cols = prediction.shape[1]
-                    rows_out = np.empty((0,3))
+                    rows_out = np.empty((0,2))
                     for x in range(0, num_cols, IMG_PATCH_SIZE):
                         for y in range(0, num_rows, IMG_PATCH_SIZE):
                             id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
-                            next_row = np.array([[id, ',', str(prediction[x,y])]])
+                            next_row = np.array([[id, str(prediction[x,y])]])
                             rows_out = np.concatenate((rows_out, next_row))
                     writer.writerows(rows_out)
             csvfile.close()
