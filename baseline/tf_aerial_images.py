@@ -16,6 +16,7 @@ import code
 import tensorflow.python.platform
 import numpy as np
 import tensorflow as tf
+import math
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
@@ -24,7 +25,10 @@ TRAINING_SIZE = 100
 VALIDATION_SIZE = 5  # Size of the validation set.
 SEED = 123  # Set to None for random seed.
 BATCH_SIZE = 64 # 64
-NUM_EPOCHS = 50
+
+TERMINATE_AFTER_TIME = True
+NUM_EPOCHS = 1
+MAX_TRAINING_TIME_IN_SEC = 28800
 RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 
@@ -32,30 +36,47 @@ VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 
 RUN_ON_TEST_SET = True
 TEST_SIZE = 50
+THRESHOLD_PROBABILITY_ROUNDING = 0.7
 
 # Set image patch size
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
+IMG_PATCHES_RESTORE = False
 IMG_PATCH_SIZE = 16
+IMG_PATCH_STRIDE = 8
 
 tf.app.flags.DEFINE_string('train_dir', 'tmp/',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 FLAGS = tf.app.flags.FLAGS
 
+def subtract_mean(img):
+    gray_img = 0.2989*img[:,:,0] + 0.5870*img[:,:,1] + 0.1140*img[:,:,2]
+    img -= np.matrix(gray_img).mean()
+
+def augment_image(img, out_ls):
+    out_ls.append(img)
+    out_ls.append(np.fliplr(img))
+    out_ls.append(np.flipud(img))
+    out_ls.append(np.rot90(img))
+    out_ls.append(np.rot90(np.rot90(img)))
+
+
 # Extract patches from a given image
-def img_crop(im, w, h):
+def img_crop(im, patch_size, stride):
     list_patches = []
     imgwidth = im.shape[0]
     imgheight = im.shape[1]
     is_2d = len(im.shape) < 3
-    for i in range(0,imgheight,h):
-        for j in range(0,imgwidth,w):
+
+    for i in range(0,imgheight - patch_size + 1, stride):
+        for j in range(0,imgwidth - patch_size + 1, stride):
             if is_2d:
-                im_patch = im[j:j+w, i:i+h]
+                im_patch = [im[j:j+patch_size, i:i+patch_size]]
             else:
-                im_patch = im[j:j+w, i:i+h, :]
-            list_patches.append(im_patch)
+                im_patch = im[j:j+patch_size, i:i+patch_size, :]
+                subtract_mean(im_patch)
+            augment_image(im_patch, list_patches)
     return list_patches
 
 def extract_data(filename, num_images):
@@ -77,9 +98,10 @@ def extract_data(filename, num_images):
     IMG_WIDTH = imgs[0].shape[0]
     IMG_HEIGHT = imgs[0].shape[1]
     N_PATCHES_PER_IMAGE = (IMG_WIDTH/IMG_PATCH_SIZE)*(IMG_HEIGHT/IMG_PATCH_SIZE)
-
-    img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
+    print('Extracting patches...')
+    img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_STRIDE) for i in range(num_images)]
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
+    print(str(len(data)) + ' patches extracted.')
 
     return np.asarray(data)
         
@@ -107,13 +129,14 @@ def extract_labels(filename, num_images):
             print ('File ' + image_filename + ' does not exist')
 
     num_images = len(gt_imgs)
-    gt_patches = [img_crop(gt_imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
+    print('Extracting patches...')
+    gt_patches = [img_crop(gt_imgs[i], IMG_PATCH_SIZE, IMG_PATCH_STRIDE) for i in range(num_images)]
     data = np.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
     labels = np.asarray([value_to_class(np.mean(data[i])) for i in range(len(data))])
+    print(str(len(data)) + ' patches extracted.')
 
     # Convert to dense 1-hot representation.
     return labels.astype(np.float32)
-
 
 def error_rate(predictions, labels):
     """Return the error rate based on dense predictions and 1-hot labels."""
@@ -144,7 +167,7 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     idx = 0
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
-            if labels[idx][0] > 0.5:
+            if labels[idx][0] > THRESHOLD_PROBABILITY_ROUNDING:
                 l = 1
             else:
                 l = 0
@@ -192,9 +215,16 @@ def main(argv=None):  # pylint: disable=unused-argument
     test_data_filename = 'data/test_set/'
 
     # Extract it into np arrays.
-    train_data = extract_data(train_data_filename, TRAINING_SIZE)
-    train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+    if IMG_PATCHES_RESTORE:
+        train_data = np.load('patches_imgs')
+        train_labels = np.load('patches_labels')
+    else:
+        train_data = extract_data(train_data_filename, TRAINING_SIZE)
+        train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
+        np.save('patches_imgs',train_data)
+        np.save('patches_labels',train_labels)
 
+    print('Total number of patches: ' + str(len(train_data)))
     num_epochs = NUM_EPOCHS
 
     c0 = 0
@@ -211,11 +241,10 @@ def main(argv=None):  # pylint: disable=unused-argument
     idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
     idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
     new_indices = idx0[0:min_c] + idx1[0:min_c]
-    print (len(new_indices))
-    print (train_data.shape)
+    # print (len(new_indices))
+    print ('Train data shape: ' + str(train_data.shape))
     train_data = train_data[new_indices,:,:,:]
     train_labels = train_labels[new_indices]
-
 
     train_size = train_labels.shape[0]
     c0 = 0
@@ -418,7 +447,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
                     tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
     # Add the regularization term to the loss.
-    loss += 5e-4 * regularizers
+    # loss += 5e-4 * regularizers
 
     # Optimizer: set up a variable that's incremented once per batch and
     # controls the learning rate decay.
@@ -459,14 +488,17 @@ def main(argv=None):  # pylint: disable=unused-argument
             # Build the summary operation based on the TF collection of Summaries.
             summary_op = tf.merge_all_summaries()
             summary_writer = tf.train.SummaryWriter(FLAGS.train_dir,
-                                                    graph_def=s.graph_def)
+                                                    graph=s.graph)
             print ('Initialized!')
             # Loop through training steps.
             print ('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
 
             training_indices = range(train_size)
             start = time.time()
-            for iepoch in range(num_epochs):
+            run_training = True
+            iepoch = 0
+            while run_training:
+            # for iepoch in range(num_epochs):
                 # Permute training indices
                 perm_indices = np.random.permutation(training_indices)
 
@@ -511,6 +543,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                 # Save the variables to disk.
                 save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
                 print("Model saved in file: %s" % save_path)
+                iepoch += 1
+                if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
+                    run_training = False;
+                if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
+                    run_training = False;
+
 
 
         if VISUALIZE_PREDICTION_ON_TRAINING_SET:
