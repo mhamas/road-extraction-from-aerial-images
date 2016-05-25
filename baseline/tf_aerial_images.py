@@ -22,28 +22,31 @@ NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
 TRAINING_SIZE = 100
-VALIDATION_SIZE = 5  # Size of the validation set.
-SEED = 123  # Set to None for random seed.
+SEED = 201
+NP_SEED = int(time.time());
 BATCH_SIZE = 64 # 64
+BALANCE_SIZE_OF_CLASSES = True
 
+RESTORE_MODEL = True # If True, restore existing model instead of training a new one
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 28800
-RESTORE_MODEL = False # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
-
-VISUALIZE_PREDICTION_ON_TRAINING_SET = True
-
-RUN_ON_TEST_SET = True
-TEST_SIZE = 50
-THRESHOLD_PROBABILITY_ROUNDING = 0.7
 
 # Set image patch size
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
-IMG_PATCHES_RESTORE = False
+IMG_PATCHES_RESTORE = True
 IMG_PATCH_SIZE = 16
 IMG_PATCH_STRIDE = 8
+
+###### POST TRAINING SETTINGS ######
+VALIDATION_SIZE = 100000  # Size of the validation set.
+VALIDATE = True;
+VISUALIZE_PREDICTION_ON_TRAINING_SET = False
+VISUALIZE_NUM = -1
+RUN_ON_TEST_SET = True
+TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string('train_dir', 'tmp/',
                            """Directory where to write event logs """
@@ -54,16 +57,19 @@ def subtract_mean(img):
     gray_img = 0.2989*img[:,:,0] + 0.5870*img[:,:,1] + 0.1140*img[:,:,2]
     img -= np.matrix(gray_img).mean()
 
-def augment_image(img, out_ls):
+def augment_image(img, out_ls, num_of_transformations):
     out_ls.append(img)
-    out_ls.append(np.fliplr(img))
-    out_ls.append(np.flipud(img))
-    out_ls.append(np.rot90(img))
-    out_ls.append(np.rot90(np.rot90(img)))
-
+    if num_of_transformations > 0:
+        out_ls.append(np.fliplr(img))
+    if num_of_transformations > 1:
+        out_ls.append(np.flipud(img))
+    if num_of_transformations > 2:
+        out_ls.append(np.rot90(img))
+    if num_of_transformations > 3:
+        out_ls.append(np.rot90(np.rot90(img)))
 
 # Extract patches from a given image
-def img_crop(im, patch_size, stride):
+def img_crop(im, patch_size, stride, num_of_transformations):
     list_patches = []
     imgwidth = im.shape[0]
     imgheight = im.shape[1]
@@ -76,10 +82,10 @@ def img_crop(im, patch_size, stride):
             else:
                 im_patch = im[j:j+patch_size, i:i+patch_size, :]
                 subtract_mean(im_patch)
-            augment_image(im_patch, list_patches)
+            augment_image(im_patch, list_patches, num_of_transformations)
     return list_patches
 
-def extract_data(filename, num_images):
+def extract_data(filename, num_images, patch_size = IMG_PATCH_SIZE, patch_stride = IMG_PATCH_STRIDE, num_of_transformations = 4):
     """Extract the images into a 4D tensor [image index, y, x, channels].
     Values are rescaled from [0, 255] down to [-0.5, 0.5].
     """
@@ -97,9 +103,9 @@ def extract_data(filename, num_images):
     num_images = len(imgs)
     IMG_WIDTH = imgs[0].shape[0]
     IMG_HEIGHT = imgs[0].shape[1]
-    N_PATCHES_PER_IMAGE = (IMG_WIDTH/IMG_PATCH_SIZE)*(IMG_HEIGHT/IMG_PATCH_SIZE)
+    N_PATCHES_PER_IMAGE = (IMG_WIDTH/patch_size)*(IMG_HEIGHT/patch_size)
     print('Extracting patches...')
-    img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_STRIDE) for i in range(num_images)]
+    img_patches = [img_crop(imgs[i], patch_size, patch_stride, num_of_transformations) for i in range(num_images)]
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
     print(str(len(data)) + ' patches extracted.')
 
@@ -110,12 +116,14 @@ def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = np.sum(v)
     if df > foreground_threshold:
+        # Road
         return [0, 1]
     else:
+        # Non-road
         return [1, 0]
 
 # Extract label images
-def extract_labels(filename, num_images):
+def extract_labels(filename, num_images, patch_size = IMG_PATCH_SIZE, patch_stride = IMG_PATCH_STRIDE, num_of_transformations = 4):
     """Extract the labels into a 1-hot matrix [image index, label index]."""
     gt_imgs = []
     for i in range(1, num_images+1):
@@ -130,7 +138,7 @@ def extract_labels(filename, num_images):
 
     num_images = len(gt_imgs)
     print('Extracting patches...')
-    gt_patches = [img_crop(gt_imgs[i], IMG_PATCH_SIZE, IMG_PATCH_STRIDE) for i in range(num_images)]
+    gt_patches = [img_crop(gt_imgs[i], patch_size, patch_stride, num_of_transformations) for i in range(num_images)]
     data = np.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
     labels = np.asarray([value_to_class(np.mean(data[i])) for i in range(len(data))])
     print(str(len(data)) + ' patches extracted.')
@@ -139,27 +147,7 @@ def extract_labels(filename, num_images):
     return labels.astype(np.float32)
 
 def error_rate(predictions, labels):
-    """Return the error rate based on dense predictions and 1-hot labels."""
-    return 100.0 - (
-        100.0 *
-        np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) /
-        predictions.shape[0])
-
-# Write predictions from neural network to a file
-def write_predictions_to_file(predictions, labels, filename):
-    max_labels = np.argmax(labels, 1)
-    max_predictions = np.argmax(predictions, 1)
-    file = open(filename, "w")
-    n = predictions.shape[0]
-    for i in range(0, n):
-        file.write(max_labels(i) + ' ' + max_predictions(i))
-    file.close()
-
-# Print predictions from neural network
-def print_predictions(predictions, labels):
-    max_labels = np.argmax(labels, 1)
-    max_predictions = np.argmax(predictions, 1)
-    print (str(max_labels) + ' ' + str(max_predictions))
+    return 100.0 - (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
 
 # Convert array of labels to an image
 def label_to_img(imgwidth, imgheight, w, h, labels):
@@ -167,10 +155,10 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
     idx = 0
     for i in range(0,imgheight,h):
         for j in range(0,imgwidth,w):
-            if labels[idx][0] > THRESHOLD_PROBABILITY_ROUNDING:
-                l = 1
-            else:
+            if labels[idx][0] > 0.5:
                 l = 0
+            else:
+                l = 1
             array_labels[j:j+w, i:i+h] = l
             idx = idx + 1
     return array_labels
@@ -196,11 +184,13 @@ def concatenate_images(img, gt_img):
         cimg = np.concatenate((img8, gt_img_3c), axis=1)
     return cimg
 
-def make_img_overlay(img, predicted_img):
+def make_img_overlay(img, predicted_img, true_img = None):
     w = img.shape[0]
     h = img.shape[1]
     color_mask = np.zeros((w, h, 3), dtype=np.uint8)
-    color_mask[:,:,0] = predicted_img*PIXEL_DEPTH
+    color_mask[:,:,0] = predicted_img * PIXEL_DEPTH
+    if (true_img != None):
+        color_mask[:,:,1] = true_img * PIXEL_DEPTH
 
     img8 = img_float_to_uint8(img)
     background = Image.fromarray(img8, 'RGB').convert("RGBA")
@@ -208,16 +198,16 @@ def make_img_overlay(img, predicted_img):
     new_img = Image.blend(background, overlay, 0.2)
     return new_img
 
-
 def main(argv=None):  # pylint: disable=unused-argument
+    np.random.seed(NP_SEED)
     train_data_filename = 'data/training/images/'
     train_labels_filename = 'data/training/groundtruth/'
     test_data_filename = 'data/test_set/'
 
     # Extract it into np arrays.
     if IMG_PATCHES_RESTORE:
-        train_data = np.load('patches_imgs')
-        train_labels = np.load('patches_labels')
+        train_data = np.load('patches_imgs.npy')
+        train_labels = np.load('patches_labels.npy')
     else:
         train_data = extract_data(train_data_filename, TRAINING_SIZE)
         train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
@@ -225,6 +215,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         np.save('patches_labels',train_labels)
 
     print('Total number of patches: ' + str(len(train_data)))
+    print('Total number of labels: ' + str(len(train_data)))
+    print('Shape of patches: ' + str(train_data.shape))
+    print('Shape of labels: ' + str(train_labels.shape))
+
     num_epochs = NUM_EPOCHS
 
     c0 = 0
@@ -236,27 +230,33 @@ def main(argv=None):  # pylint: disable=unused-argument
             c1 = c1 + 1
     print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
-    print ('Balancing training data...')
-    min_c = min(c0, c1)
-    idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
-    idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
-    new_indices = idx0[0:min_c] + idx1[0:min_c]
-    # print (len(new_indices))
-    print ('Train data shape: ' + str(train_data.shape))
-    train_data = train_data[new_indices,:,:,:]
-    train_labels = train_labels[new_indices]
+    if BALANCE_SIZE_OF_CLASSES:
+        print ('Balancing training data...')
+        min_c = min(c0, c1)
+        idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
+        idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
+        new_indices = idx0[0:min_c] + idx1[0:min_c]
+        train_data = train_data[new_indices,:,:,:]
+        train_labels = train_labels[new_indices]
 
-    train_size = train_labels.shape[0]
-    c0 = 0
-    c1 = 0
-    for i in range(len(train_labels)):
-        if train_labels[i][0] == 1:
-            c0 = c0 + 1
-        else:
-            c1 = c1 + 1
-    print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+        train_size = train_labels.shape[0]
+        c0 = 0
+        c1 = 0
+        for i in range(len(train_labels)):
+            if train_labels[i][0] == 1:
+                c0 = c0 + 1
+            else:
+                c1 = c1 + 1
+        print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
+    ##### SETTING UP VALIDATION SET #####
+    perm_indices = np.random.permutation(np.arange(0,len(train_data)))
+    validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
+    validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
+    print('Size of validation set: ' + str(len(validation_data)))
+    print('Shape of validation set: ' + str(validation_data.shape))
 
+    ##### CREATING VARIABLES FOR GRAPH #####
     # This is where training samples and labels are fed to the graph.
     # These placeholder nodes will be fed a batch of training data at each
     # training step using the {feed_dict} argument to the Run() call below.
@@ -317,7 +317,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Get prediction for given input image 
     def get_prediction(img):
-        data = np.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE))
+        data = np.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, 0))
         data_node = tf.constant(data)
         output = tf.nn.softmax(model(data_node))
         output_prediction = s.run(output)
@@ -349,15 +349,28 @@ def main(argv=None):  # pylint: disable=unused-argument
         return cimg
 
     # Get prediction overlaid on the original image for given input file
-    def get_prediction_with_overlay(filename, image_idx):
+    def get_prediction_with_overlay(img_filename, truth_filename, image_idx):
         imageid = "satImage_%.3d" % image_idx
-        image_filename = filename + imageid + ".png"
+        
+        image_filename = img_filename + imageid + ".png"
         img = mpimg.imread(image_filename)
 
         img_prediction = get_prediction(img)
-        oimg = make_img_overlay(img, img_prediction)
+
+        truth_filename = truth_filename + imageid + ".png"
+        img_truth = mpimg.imread(truth_filename)
+
+        oimg = make_img_overlay(img, img_prediction, img_truth)
 
         return oimg
+
+    def validate(patches, labels):
+        print('Validation started.')
+        data = np.asarray(patches)
+        data_node = tf.constant(data)
+        prediction = s.run(tf.nn.softmax(model(data_node)))
+
+        return error_rate(prediction, labels)
 
     # We will replicate the model structure for the training subgraph, as well
     # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -529,8 +542,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                         print ('Epoch %d / %d' % (iepoch, num_epochs))
                         print ('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
-                        print ('Minibatch error: %.1f%%' % error_rate(predictions,
-                                                                     batch_labels))
+                        print ('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
                         end = time.time()
                         print("Time elapsed: %.3f" %(end - start))
                         sys.stdout.flush()
@@ -552,17 +564,22 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
         if VISUALIZE_PREDICTION_ON_TRAINING_SET:
-            print ("Running prediction on training set")
+            print ("Visualizing prediction on training set")
             prediction_training_dir = "predictions_training/"
             if not os.path.isdir(prediction_training_dir):
                 os.mkdir(prediction_training_dir)
-            for i in range(1, TRAINING_SIZE + 1):
-                pimg = get_prediction_with_groundtruth(train_data_filename, i)
-                Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-                oimg = get_prediction_with_overlay(train_data_filename, i)
+            limit = TRAINING_SIZE + 1 if VISUALIZE_NUM == -1 else VISUALIZE_NUM
+            for i in range(1, limit):
+                # pimg = get_prediction_with_groundtruth(train_data_filename, i)
+                # Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
+                oimg = get_prediction_with_overlay(train_data_filename, train_labels_filename, i)
                 oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+        
+        if VALIDATE:
+            err = validate(validation_data, validation_labels)
+            print('Validation error: %.1f%%' % err)
 
-        if (RUN_ON_TEST_SET):
+        if RUN_ON_TEST_SET:
             print ("Running prediction on test set")
             prediction_test_dir = "predictions_test/"
             if not os.path.isdir(prediction_test_dir):
@@ -583,10 +600,10 @@ def main(argv=None):  # pylint: disable=unused-argument
                     num_rows = prediction.shape[0]
                     num_cols = prediction.shape[1]
                     rows_out = np.empty((0,2))
-                    for x in range(0, num_cols, IMG_PATCH_SIZE):
-                        for y in range(0, num_rows, IMG_PATCH_SIZE):
+                    for x in range(0, num_rows, IMG_PATCH_SIZE):
+                        for y in range(0, num_cols, IMG_PATCH_SIZE):
                             id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
-                            next_row = np.array([[id, str(prediction[x,y])]])
+                            next_row = np.array([[id, str(prediction[y,x])]])
                             rows_out = np.concatenate((rows_out, next_row))
                     writer.writerows(rows_out)
             csvfile.close()
