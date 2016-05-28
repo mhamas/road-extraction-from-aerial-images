@@ -17,6 +17,8 @@ import tensorflow.python.platform
 import numpy as np
 import tensorflow as tf
 import math
+import scipy
+import scipy.signal
 
 NUM_CHANNELS = 3 # RGB images
 PIXEL_DEPTH = 255
@@ -37,12 +39,14 @@ RECORDING_STEP = 1000
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
 IMG_PATCHES_RESTORE = True
+IMG_WIDTH = 400;
+IMG_HEIGHT = 400;
 IMG_PATCH_SIZE = 16
 IMG_PATCH_STRIDE = 8
 
 ###### POST TRAINING SETTINGS ######
-VALIDATION_SIZE = 100000  # Size of the validation set.
-VALIDATE = True;
+VALIDATION_SIZE = 10000  # Size of the validation set.
+VALIDATE = False;
 VISUALIZE_PREDICTION_ON_TRAINING_SET = False
 VISUALIZE_NUM = -1
 RUN_ON_TEST_SET = True
@@ -56,6 +60,28 @@ FLAGS = tf.app.flags.FLAGS
 def subtract_mean(img):
     gray_img = 0.2989*img[:,:,0] + 0.5870*img[:,:,1] + 0.1140*img[:,:,2]
     img -= np.matrix(gray_img).mean()
+
+def prediction_to_mask(labels, width, height):
+    mask = np.zeros([height, width])
+    idx = 0
+    for i in range(0,height):
+        for j in range(0,width):
+            mask[i][j] = 0 if labels[idx][0] > 0.5 else 1
+            idx = idx + 1
+    return mask
+
+def mask_to_prediction(mask):
+    (height, width) = mask.shape;
+    prediction = np.zeros([height * width, 2])
+    idx = 0
+    for i in range(0,height):
+        for j in range(0,width):
+            if mask[i][j] == 1:
+                prediction[idx][1] = 1
+            else:
+                prediction[idx][0] = 1
+            idx = idx + 1
+    return prediction
 
 def augment_image(img, out_ls, num_of_transformations):
     out_ls.append(img)
@@ -206,8 +232,13 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Extract it into np arrays.
     if IMG_PATCHES_RESTORE:
-        train_data = np.load('patches_imgs.npy')
-        train_labels = np.load('patches_labels.npy')
+        if BALANCE_SIZE_OF_CLASSES:
+            train_data = np.load('patches_imgs_balanced.npy')
+            train_labels = np.load('patches_labels_balanced.npy')
+            train_size = train_labels.shape[0]
+        else:
+            train_data = np.load('patches_imgs.npy')
+            train_labels = np.load('patches_labels.npy')
     else:
         train_data = extract_data(train_data_filename, TRAINING_SIZE)
         train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
@@ -231,30 +262,36 @@ def main(argv=None):  # pylint: disable=unused-argument
     print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
     if BALANCE_SIZE_OF_CLASSES:
-        print ('Balancing training data...')
-        min_c = min(c0, c1)
-        idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
-        idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
-        new_indices = idx0[0:min_c] + idx1[0:min_c]
-        train_data = train_data[new_indices,:,:,:]
-        train_labels = train_labels[new_indices]
+        if IMG_PATCHES_RESTORE:
+            print('Skipping balancing - balanced data already loaded from the disk.')
+        else:
+            print ('Balancing training data...')
+            min_c = min(c0, c1)
+            idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
+            idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
+            new_indices = idx0[0:min_c] + idx1[0:min_c]
+            train_data = train_data[new_indices,:,:,:]
+            train_labels = train_labels[new_indices]
 
-        train_size = train_labels.shape[0]
-        c0 = 0
-        c1 = 0
-        for i in range(len(train_labels)):
-            if train_labels[i][0] == 1:
-                c0 = c0 + 1
-            else:
-                c1 = c1 + 1
-        print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+            train_size = train_labels.shape[0]
+            c0 = 0
+            c1 = 0
+            for i in range(len(train_labels)):
+                if train_labels[i][0] == 1:
+                    c0 = c0 + 1
+                else:
+                    c1 = c1 + 1
+            print ('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
+            np.save('patches_imgs_balanced',train_data)
+            np.save('patches_labels_balanced',train_labels)
 
     ##### SETTING UP VALIDATION SET #####
-    perm_indices = np.random.permutation(np.arange(0,len(train_data)))
-    validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
-    validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
-    print('Size of validation set: ' + str(len(validation_data)))
-    print('Shape of validation set: ' + str(validation_data.shape))
+    if VALIDATE:
+        perm_indices = np.random.permutation(np.arange(0,len(train_data)))
+        validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
+        validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
+        print('Size of validation set: ' + str(len(validation_data)))
+        print('Shape of validation set: ' + str(validation_data.shape))
 
     ##### CREATING VARIABLES FOR GRAPH #####
     # This is where training samples and labels are fed to the graph.
@@ -315,27 +352,55 @@ def main(argv=None):  # pylint: disable=unused-argument
         V = tf.reshape(V, (-1, img_w, img_h, 1))
         return V
 
+    def set_to_zero_if_no_neighbours(mask):
+        (height, width) = mask.shape
+        for i in range(1, height - 1):
+            for j in range(1, width - 1):
+                if mask[i][j] == 1 \
+                and mask[i + 1][j] == 0 \
+                and mask[i - 1][j] == 0 \
+                and mask[i][j + 1] == 0 \
+                and mask[i][j - 1] == 0:
+                    mask[i][j] = 0
+                if mask[i][j] == 0 \
+                and mask[i + 1][j] == 1 \
+                and mask[i - 1][j] == 1 \
+                and mask[i][j + 1] == 1 \
+                and mask[i][j - 1] == 1:
+                    mask[i][j] = 1
+        return mask
+
+    def postprocess_prediction(prediction,  width, height):
+        mask = prediction_to_mask(prediction, width, height);
+        # scipy.misc.imsave('test_before.png', mask)
+        mask = set_to_zero_if_no_neighbours(mask)
+        # mask = scipy.signal.medfilt(mask, 3)
+        # scipy.misc.imsave('test_after.png', mask)
+        return mask_to_prediction(mask)
+    
     # Get prediction for given input image 
-    def get_prediction(img):
+    def get_prediction(img, ):
         data = np.asarray(img_crop(img, IMG_PATCH_SIZE, IMG_PATCH_SIZE, 0))
         data_node = tf.constant(data)
         output = tf.nn.softmax(model(data_node))
         output_prediction = s.run(output)
-        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+        output_prediction_postprocessed = postprocess_prediction(output_prediction, int(img.shape[0] / IMG_PATCH_SIZE), int(img.shape[1] / IMG_PATCH_SIZE))
 
-        return img_prediction
+        img_prediction = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction)
+        img_prediction_postprocessed = label_to_img(img.shape[0], img.shape[1], IMG_PATCH_SIZE, IMG_PATCH_SIZE, output_prediction_postprocessed)
+        return (img_prediction, img_prediction_postprocessed)
 
     # Get test prediction
     def get_prediction_test(image_idx, overlay = False):
         imageid = "test_%d" % image_idx
         image_filename = test_data_filename + imageid + ".png"
         img = mpimg.imread(image_filename)
-        img_prediction = get_prediction(img)
+        (img_prediction, img_prediction_postprocessed) = get_prediction(img)
 
         if overlay:
             img_prediction = make_img_overlay(img, img_prediction)
-
-        return img_prediction
+            img_prediction_postprocessed = make_img_overlay(img, img_prediction_postprocessed)
+        return (img_prediction, img_prediction_postprocessed)
     
     # Get a concatenation of the prediction and groundtruth for given input file
     def get_prediction_with_groundtruth(filename, image_idx):
@@ -343,7 +408,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         image_filename = filename + imageid + ".png"
         img = mpimg.imread(image_filename)
 
-        img_prediction = get_prediction(img)
+        (img_prediction,_) = get_prediction(img)
         cimg = concatenate_images(img, img_prediction)
 
         return cimg
@@ -355,14 +420,14 @@ def main(argv=None):  # pylint: disable=unused-argument
         image_filename = img_filename + imageid + ".png"
         img = mpimg.imread(image_filename)
 
-        img_prediction = get_prediction(img)
+        (img_prediction, img_prediction_postprocessed) = get_prediction(img)
 
         truth_filename = truth_filename + imageid + ".png"
         img_truth = mpimg.imread(truth_filename)
 
         oimg = make_img_overlay(img, img_prediction, img_truth)
-
-        return oimg
+        oimg_postprocessed = make_img_overlay(img, img_prediction_postprocessed, img_truth)
+        return (oimg, oimg_postprocessed)
 
     def validate(patches, labels):
         print('Validation started.')
@@ -572,8 +637,9 @@ def main(argv=None):  # pylint: disable=unused-argument
             for i in range(1, limit):
                 # pimg = get_prediction_with_groundtruth(train_data_filename, i)
                 # Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-                oimg = get_prediction_with_overlay(train_data_filename, train_labels_filename, i)
-                oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")       
+                (oimg, oimg_postprocessed) = get_prediction_with_overlay(train_data_filename, train_labels_filename, i)
+                oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+                oimg_postprocessed.save(prediction_training_dir + "overlay_" + str(i) + "_postprocessed.png")
         
         if VALIDATE:
             err = validate(validation_data, validation_labels)
@@ -591,11 +657,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                 for i in range(1, TEST_SIZE + 1):
                     print("Test img: " + str(i))
                     # Visualization
-                    pimg = get_prediction_test(i, True)
+                    (pimg, pimg_postprocessed) = get_prediction_test(i, True)
                     pimg.save(prediction_test_dir + "test" + str(i) + ".png")
+                    pimg_postprocessed.save(prediction_test_dir + "test" + str(i) + "_postprocessed.png")
 
                     # Construction of the submission file
-                    prediction = get_prediction_test(i);
+                    (_,prediction) = get_prediction_test(i);
                     prediction = prediction.astype(np.int)
                     num_rows = prediction.shape[0]
                     num_cols = prediction.shape[1]
