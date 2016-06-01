@@ -26,13 +26,13 @@ NUM_LABELS = 2
 TRAINING_SIZE = 100
 SEED = None
 NP_SEED = int(time.time());
-BATCH_SIZE = 32 # 64
-BALANCE_SIZE_OF_CLASSES = False
+BATCH_SIZE = 512 # 64
+BALANCE_SIZE_OF_CLASSES = True
 
 RESTORE_MODEL = True # If True, restore existing model instead of training a new one
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 1.0 * 28800 # 1 hours
+MAX_TRAINING_TIME_IN_SEC = 1.5 * 28800 # 12 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.1
@@ -42,18 +42,18 @@ DECAY_STEP = 100000
 # Set image patch size
 # IMG_PATCH_SIZE should be a multiple of 4
 # image size should be an integer multiple of this number!
-IMG_PATCHES_RESTORE = False
+IMG_PATCHES_RESTORE = True
 IMG_WIDTH = 400;
 IMG_HEIGHT = 400;
 IMG_PATCH_SIZE = 16
 IMG_PATCH_STRIDE = 8
 
 ###### POST TRAINING SETTINGS ######
-VALIDATION_SIZE = 625  # Size of the validation set.
+VALIDATION_SIZE = 10000  # Size of the validation set.
 VALIDATE = True;
 VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1
-RUN_ON_TEST_SET = True
+RUN_ON_TEST_SET = False
 TEST_SIZE = 50
 
 mean_img = None;
@@ -228,22 +228,6 @@ def img_float_to_uint8(img):
     rimg = (rimg / np.max(rimg) * PIXEL_DEPTH).round().astype(np.uint8)
     return rimg
 
-def concatenate_images(img, gt_img):
-    nChannels = len(gt_img.shape)
-    w = gt_img.shape[0]
-    h = gt_img.shape[1]
-    if nChannels == 3:
-        cimg = np.concatenate((img, gt_img), axis=1)
-    else:
-        gt_img_3c = np.zeros((w, h, 3), dtype=np.uint8)
-        gt_img8 = img_float_to_uint8(gt_img)          
-        gt_img_3c[:,:,0] = gt_img8
-        gt_img_3c[:,:,1] = gt_img8
-        gt_img_3c[:,:,2] = gt_img8
-        img8 = img_float_to_uint8(img)
-        cimg = np.concatenate((img8, gt_img_3c), axis=1)
-    return cimg
-
 def make_img_overlay(img, predicted_img, true_img = None):
     w = img.shape[0]
     h = img.shape[1]
@@ -279,8 +263,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             train_labels = np.load('patches_labels.npy')
         train_size = train_labels.shape[0]
     else:
-        train_data = extract_data(train_data_filename, TRAINING_SIZE, 0, IMG_PATCH_SIZE, IMG_PATCH_SIZE)
-        train_labels = extract_labels(train_labels_filename, TRAINING_SIZE, 0, IMG_PATCH_SIZE, IMG_PATCH_SIZE)
+        train_data = extract_data(train_data_filename, TRAINING_SIZE)
+        train_labels = extract_labels(train_labels_filename, TRAINING_SIZE)
         np.save('patches_imgs',train_data)
         np.save('patches_labels',train_labels)
 
@@ -326,11 +310,9 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     ##### SETTING UP VALIDATION SET #####
     if VALIDATE:
-        # perm_indices = np.arange(0,len(train_data))#np.random.permutation(np.arange(0,len(train_data)))
-        # validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
-        # validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
-        validation_data = train_data
-        validation_labels = train_labels
+        perm_indices = np.arange(0,len(train_data))#np.random.permutation(np.arange(0,len(train_data)))
+        validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
+        validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
         print('Size of validation set: ' + str(len(validation_data)))
         print('Shape of validation set: ' + str(validation_data.shape))
 
@@ -353,8 +335,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     num_of_FC_params_to_learn = 0
     # CONV 1
     with tf.name_scope('conv1') as scope:
-        conv1_dim = 7
-        conv1_num_of_maps = 32
+        conv1_dim = 3
+        conv1_num_of_maps = 16
         conv1_weights = tf.Variable(
             tf.truncated_normal([conv1_dim, conv1_dim, NUM_CHANNELS, conv1_num_of_maps],  # 5x5 filter, depth 32.
                                 stddev=0.1,
@@ -364,30 +346,41 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # CONV 2
     with tf.name_scope('conv2') as scope:
-        conv2_dim = 5
-        conv2_num_of_maps = 64
+        conv2_dim = 3
+        conv2_num_of_maps = 32
         conv2_weights = tf.Variable(
             tf.truncated_normal([conv2_dim, conv2_dim, conv1_num_of_maps, conv2_num_of_maps],
                                 stddev=0.1,
                                 seed=SEED), name='weights')
-        conv2_biases = tf.Variable(tf.constant(0.1, shape=[64]), name='biases')
+        conv2_biases = tf.Variable(tf.constant(0.1, shape=[conv2_num_of_maps]), name='biases')
     num_of_CNN_params_to_learn += conv2_dim * conv2_dim * conv2_num_of_maps
 
     # CONV 3
     with tf.name_scope('conv3') as scope:
         conv3_dim = 3
-        conv3_num_of_maps = 64
+        conv3_num_of_maps = 32
         conv3_weights = tf.Variable(
             tf.truncated_normal([conv3_dim, conv3_dim, conv2_num_of_maps, conv3_num_of_maps],
                                 stddev=0.1,
                                 seed=SEED), name='weights')
-        conv3_biases = tf.Variable(tf.constant(0.1, shape=[64]), name='biases')
+        conv3_biases = tf.Variable(tf.constant(0.1, shape=[conv3_num_of_maps]), name='biases')
     num_of_CNN_params_to_learn += conv3_dim * conv3_dim * conv3_num_of_maps
 
+    # CONV 4
+    with tf.name_scope('conv4') as scope:
+        conv4_dim = 3
+        conv4_num_of_maps = 64
+        conv4_weights = tf.Variable(
+            tf.truncated_normal([conv4_dim, conv4_dim, conv3_num_of_maps, conv4_num_of_maps],
+                                stddev=0.1,
+                                seed=SEED), name='weights')
+        conv4_biases = tf.Variable(tf.constant(0.1, shape=[conv4_num_of_maps]), name='biases')
+    num_of_CNN_params_to_learn += conv4_dim * conv4_dim * conv4_num_of_maps
+
     # FC 1
-    tmp_neuron_num = int((IMG_PATCH_SIZE / 8) * (IMG_PATCH_SIZE / 8) * 64);
+    tmp_neuron_num = int((IMG_PATCH_SIZE / 8) * (IMG_PATCH_SIZE / 8) * conv4_num_of_maps);
     with tf.name_scope('fc1') as scope:
-        fc1_size = 128
+        fc1_size = 64
         fc1_weights = tf.Variable(  # fully connected, depth 512.
             tf.truncated_normal([tmp_neuron_num, fc1_size],
                                 stddev=0.1,
@@ -482,17 +475,6 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_prediction = make_img_overlay(img, img_prediction)
             img_prediction_postprocessed = make_img_overlay(img, img_prediction_postprocessed)
         return (img_prediction, img_prediction_postprocessed)
-    
-    # Get a concatenation of the prediction and groundtruth for given input file
-    def get_prediction_with_groundtruth(filename, image_idx):
-        imageid = "satImage_%.3d" % image_idx
-        image_filename = filename + imageid + ".png"
-        img = mpimg.imread(image_filename)
-
-        (img_prediction,_) = get_prediction(img)
-        cimg = concatenate_images(img, img_prediction)
-
-        return cimg
 
     # Get prediction overlaid on the original image for given input file
     def get_prediction_with_overlay(img_filename, truth_filename, image_idx):
@@ -545,18 +527,18 @@ def main(argv=None):  # pylint: disable=unused-argument
         conv3 = tf.nn.conv2d(pool2, conv3_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu3 = tf.nn.relu(tf.nn.bias_add(conv3, conv3_biases))
         norm3 = tf.nn.lrn(relu3)
-        pool3 = tf.nn.max_pool(norm3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+        pool3 = norm3
+        #pool3 = tf.nn.max_pool(norm3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
+
+        # CONV. LAYER 3
+        conv4 = tf.nn.conv2d(pool3, conv4_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu4 = tf.nn.relu(tf.nn.bias_add(conv4, conv4_biases))
+        norm4 = tf.nn.lrn(relu4)
+        pool4 = tf.nn.max_pool(norm4, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
         
         # conv_out = tf.nn.avg_pool(pool3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-        conv_out = pool3;
-
-        # Uncomment these lines to check the size of each layer
-        # print 'data ' + str(data.get_shape())
-        # print 'conv ' + str(conv.get_shape())
-        # print 'relu ' + str(relu.get_shape())
-        # print 'pool ' + str(pool.get_shape())
-        # print 'pool2 ' + str(pool2.get_shape())
+        conv_out = pool4;
 
         # Reshape the feature map cuboid into a 2D matrix to feed it to the
         # fully connected layers.
@@ -574,7 +556,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         # activations such that no rescaling is needed at evaluation time.
         # if train:
 
-        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        #hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
 
         if train == True:
@@ -704,6 +686,10 @@ def main(argv=None):  # pylint: disable=unused-argument
                         print ('Minibatch loss: %.6f, learning rate: %.6f' % (l, lr))
                         print ('Minibatch insample error: %.1f%%' % insample_error)
                         sys.stdout.flush()
+
+                        # Save the variables to disk.
+                        save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
+                        print("Model saved in file: %s" % save_path)
                     else:
                         # Run the graph and fetch some of the nodes.
                         _, l, lr, predictions = s.run(
@@ -711,9 +697,6 @@ def main(argv=None):  # pylint: disable=unused-argument
                             feed_dict=feed_dict)
                     batch_int += 1
                     
-                # Save the variables to disk.
-                save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
-                print("Model saved in file: %s" % save_path)
                 iepoch += 1
                 if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
                     run_training = False;
@@ -736,6 +719,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                 oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
                 # oimg_postprocessed.save(prediction_training_dir + "overlay_" + str(i) + "_postprocessed.png")
 
+                imageid = "satImage_%.3d" % i
+                img = mpimg.imread(train_data_filename + imageid + ".png")
+                (prediction, _) = get_prediction(img)
+                scipy.misc.imsave(prediction_training_dir + 'training_raw_' + str(i) + '.png', prediction)
+
         
         if VALIDATE:
             err = validate(validation_data, validation_labels)
@@ -755,10 +743,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Visualization
                     (pimg, pimg_postprocessed) = get_prediction_test(i, True)
                     pimg.save(prediction_test_dir + "test" + str(i) + ".png")
-                    pimg_postprocessed.save(prediction_test_dir + "test" + str(i) + "_postprocessed.png")
+                    # pimg_postprocessed.save(prediction_test_dir + "test" + str(i) + "_postprocessed.png")
 
                     # Construction of the submission file
-                    (_,prediction) = get_prediction_test(i);
+                    (prediction,_) = get_prediction_test(i);
+                    scipy.misc.imsave(prediction_test_dir + 'test_raw_' + str(i) + '.png', prediction)
                     prediction = prediction.astype(np.int)
                     num_rows = prediction.shape[0]
                     num_cols = prediction.shape[1]
