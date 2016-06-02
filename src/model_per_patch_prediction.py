@@ -27,7 +27,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32 
 BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 
-RESTORE_MODEL = True 
+RESTORE_MODEL = False 
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 30 # NB: 28800 = 8 hours
@@ -38,7 +38,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
-IMG_PATCHES_RESTORE = True
+IMG_PATCHES_RESTORE = False
 TRAINING_SIZE = 10
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
