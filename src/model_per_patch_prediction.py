@@ -27,10 +27,10 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32 
 BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 
-RESTORE_MODEL = False 
+RESTORE_MODEL = False
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 30 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 1800 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.1
@@ -39,7 +39,7 @@ DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
 IMG_PATCHES_RESTORE = False
-TRAINING_SIZE = 10
+TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = True
@@ -49,7 +49,7 @@ VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1 # -1 means visualize all
 
 RUN_ON_TEST_SET = True
-TEST_SIZE = 10
+TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
 
