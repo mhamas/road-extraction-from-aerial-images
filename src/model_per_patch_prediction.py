@@ -336,11 +336,9 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         return (prediction, prediction_as_img)
 
-    def validate(patches, labels):
+    def validate(validation_model, labels):
         print("\n --- Validation ---")
-        data = np.asarray(patches)
-        data_node = tf.constant(data)
-        prediction = s.run(tf.nn.softmax(model(data_node)))
+        prediction = s.run(tf.nn.softmax(validation_model))
         err = error_rate(prediction, labels)
         print ("Validation set size: %d" % VALIDATION_SIZE)
         print ("Error: %.1f%%" % err)
@@ -453,6 +451,10 @@ def main(argv=None):  # pylint: disable=unused-argument
     error_validation_tensor = tf.Variable(0)
     tf.scalar_summary('error_validation', error_validation_tensor)
 
+    # Create the validation model here to prevent recreating large constant nodes in graph later
+    data_node = tf.constant(np.asarray(validation_data))
+    validation_model = model(data_node)
+
     ### SUMMARY OF WEIGHTS ###
     all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
     all_params_names = ['conv1_weights', 'conv1_biases', 'conv2_weights', 'conv2_biases', 'conv3_weights', 'conv3_biases', 'fc1_weights', 'fc1_biases', 'fc2_weights', 'fc2_biases']
@@ -467,12 +469,13 @@ def main(argv=None):  # pylint: disable=unused-argument
     ### OPTIMIZER SETUP ###
     #######################
     batch = tf.Variable(0)
-    learning_rate = tf.train.exponential_decay(
-        BASE_LEARNING_RATE,  # Base learning rate.
-        batch * BATCH_SIZE,  # Current index into the dataset.
-        DECAY_STEP,          # Decay step.
-        DECAY_RATE,          # Decay rate.
-        staircase=True)
+    learning_rate = tf.Variable(0.01)
+    # tf.train.exponential_decay(
+    #     BASE_LEARNING_RATE,  # Base learning rate.
+    #     batch * BATCH_SIZE,  # Current index into the dataset.
+    #     DECAY_STEP,          # Decay step.
+    #     DECAY_RATE,          # Decay rate.
+    #     staircase=True)
 
     tf.scalar_summary('learning_rate', learning_rate)
 
@@ -509,7 +512,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             while run_training:
                 perm_indices = np.random.permutation(training_indices)
 
-                for batch_index in range (int(train_size / BATCH_SIZE)):
+                for step in range (int(train_size / BATCH_SIZE)):
                     if not run_training:
                         break;
 
@@ -545,8 +548,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                         insample_error = error_rate(predictions, batch_labels)
                         s.run(error_insample_tensor.assign(insample_error))
                         
-                        if batch_index % VALIDATION_STEP == 0:
-                            validation_err = validate(validation_data, validation_labels)
+                        if VALIDATE and batch_index % VALIDATION_STEP == 0:
+                            validation_err = validate(validation_model, validation_labels)
                             s.run(error_validation_tensor.assign(validation_err))
 
                         # Writing to disk
@@ -554,7 +557,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                         summary_writer.add_summary(summary_str, batch_index)
                         summary_writer.flush()
 
-                        print ("\nEpoch: %d, Batch #: %d"  % (iepoch, batch_index))
+                        print ("\nEpoch: %d, Batch #: %d"  % (iepoch, step))
                         print ("Global step:     %d" % (batch_index * BATCH_SIZE))
                         print ("Time elapsed:    %.3fs" %(time.time() - start))
                         print ("Minibatch loss:  %.6f" % l)
@@ -600,7 +603,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 get_prediction_with_overlay(s, input_path, output_path_overlay, output_path_raw, truth_path)
 
         if VALIDATE:
-            validate(validation_data, validation_labels)
+            validation_err = validate(validation_model, validation_labels)
 
         if RUN_ON_TEST_SET:
             print ("--- Running prediction on test set ---")
