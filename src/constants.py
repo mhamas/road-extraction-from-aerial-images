@@ -5,3 +5,6 @@ IMG_PATCH_SIZE = 16
 IMG_PATCH_STRIDE = 8
 
 PATCHES_MEAN_PATH = "../objects/patches_mean"
+
+# post processing
+DICT_PATCH_SIZE = (5, 5)

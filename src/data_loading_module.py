@@ -65,3 +65,49 @@ def extract_labels(filename, num_images, num_of_transformations = 6, patch_size 
 
     # Convert to dense 1-hot representation.
     return labels.astype(np.float32)
+    
+# converts 1-hot pixel-wise labels to a lowres image of patch labels
+def pixel_to_patch_labels(im, patch_size, stride):
+    imgwidth = im.shape[0]
+    imgheight = im.shape[1]
+
+    outW = 0
+    outH = 0
+    for i in range(0,imgheight - patch_size + 1, stride):
+        outH = outH + 1
+    for j in range(0,imgwidth - patch_size + 1, stride):
+        outW = outW + 1
+       
+    output = np.zeros((outW, outH));
+    idxI = 0
+    for i in range(0,imgheight - patch_size + 1, stride):
+        idxJ = 0
+        for j in range(0,imgwidth - patch_size + 1, stride):
+            im_patch = [im[j:j+patch_size, i:i+patch_size]]
+            output[idxJ, idxI] = value_to_class(np.mean(im_patch))[1]
+            idxJ = idxJ + 1
+
+        idxI = idxI + 1
+        
+    return output
+    
+# extract labels from ground truth as label images
+def extract_label_images(filename, num_images, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE):
+    """Extract the labels into label images"""
+    gt_imgs = []
+    for i in range(1, num_images+1):
+        imageid = "satImage_%.3d" % i
+        image_filename = filename + imageid + ".png"
+        if os.path.isfile(image_filename):
+            print ('Loading ' + image_filename)
+            img = mpimg.imread(image_filename)
+            gt_imgs.append(img)
+        else:
+            print ('File ' + image_filename + ' does not exist')
+
+    num_images = len(gt_imgs)
+    print('Extracting patches...')
+    gt_patches = [pixel_to_patch_labels(gt_imgs[i], patch_size, patch_stride) for i in range(num_images)]
+    
+    return gt_patches
+    
