@@ -9,7 +9,7 @@ def denoiseImg(img, D):
     result = np.zeros((imgwidth, imgheight))
     counts = np.zeros((imgwidth, imgheight))
     
-    coder = SparseCoder(dictionary=D, transform_n_nonzero_coefs=2,
+    coder = SparseCoder(dictionary=D, transform_n_nonzero_coefs=1,
     			transform_alpha=1, transform_algorithm='omp')
     					
     for i in range(0,imgheight - const.DICT_PATCH_SIZE[1] + 1, stride):
