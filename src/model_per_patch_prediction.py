@@ -15,6 +15,7 @@ import scipy
 import patch_extraction_module as pem 
 import data_loading_module as dlm
 import constants as const
+import postprocessing_module as pm
 
 ROOT_DIR = "../"
 PIXEL_DEPTH = 255
@@ -27,7 +28,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32 
 BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 
-RESTORE_MODEL = False
+RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 1800 # NB: 28800 = 8 hours
@@ -38,7 +39,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
-IMG_PATCHES_RESTORE = False
+IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
@@ -48,7 +49,7 @@ VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1 # -1 means visualize all
 
-RUN_ON_TEST_SET = True
+RUN_ON_TEST_SET = False
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -280,8 +281,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     # Get prediction overlaid on the original image for given input file
     def get_prediction_with_overlay(tf_session, input_path, output_path_overlay, output_path_raw, truth_input_path = None):
-        ### AUXILIARY FUNCTION 1 ###
-        def label_to_img(imgwidth, imgheight, w, h, labels):
+        ### AUXILIARY FUNCTION 0 ###
+        def label_to_binary_img(imgwidth, imgheight, w, h, labels):
             array_labels = np.zeros([imgwidth, imgheight])
             idx = 0
             for i in range(0,imgheight,h):
@@ -293,7 +294,19 @@ def main(argv=None):  # pylint: disable=unused-argument
                     array_labels[j:j+w, i:i+h] = l
                     idx = idx + 1
             return array_labels
+        ### END OF AUXILIARY FUNCTION 0 ###
+
+        ### AUXILIARY FUNCTION 1 ###
+        def label_to_img(imgwidth, imgheight, w, h, labels):
+            array_labels = np.zeros([imgwidth, imgheight])
+            idx = 0
+            for i in range(0,imgheight,h):
+                for j in range(0,imgwidth,w):
+                    array_labels[j:j+w, i:i+h] = labels[idx][1]
+                    idx = idx + 1
+            return array_labels     
         ### END OF AUXILIARY FUNCTION 1 ###
+
         ### AUXILIARY FUNCTION 2 ###
         def make_img_overlay(img, predicted_img, true_img = None):
             ### AUXILIARY FUNCTION 2.1 ###
@@ -325,11 +338,17 @@ def main(argv=None):  # pylint: disable=unused-argument
         
         # Get prediction
         prediction = get_prediction(tf_session, img)
-        prediction_as_img = label_to_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
 
+        ### POST PROCESSING ###
+        # for i in range(1):
+        #     prediction = pm.postprocess_prediction(prediction, int(np.sqrt(prediction.shape[0])), int(np.sqrt(prediction.shape[0])))
+        #######################
+
+        prediction_as_img = label_to_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
+        prediction_as_binary_img = label_to_binary_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
         # Save output to disk
         # Overlay
-        oimg = make_img_overlay(img, prediction_as_img, img_truth)
+        oimg = make_img_overlay(img, prediction_as_binary_img, img_truth)
         oimg.save(output_path_overlay)
         # Raw image
         scipy.misc.imsave(output_path_raw, prediction_as_img)

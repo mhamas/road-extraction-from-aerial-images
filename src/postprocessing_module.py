@@ -32,17 +32,20 @@ def set_to_zero_if_no_neighbours(mask):
     (height, width) = mask.shape
     for i in range(1, height - 1):
         for j in range(1, width - 1):
-            if mask[i][j] == 1 \
-            and mask[i + 1][j] == 0 \
-            and mask[i - 1][j] == 0 \
-            and mask[i][j + 1] == 0 \
-            and mask[i][j - 1] == 0:
+            num_of_zero_neighbours = 0
+            if mask[i - 1][j] == 0:
+                num_of_zero_neighbours += 1
+            if mask[i + 1][j] == 0:
+                num_of_zero_neighbours += 1
+            if mask[i][j - 1] == 0:
+                num_of_zero_neighbours += 1
+            if mask[i][j + 1] == 0:
+                num_of_zero_neighbours += 1
+
+            num_of_one_neighbours = 4 - num_of_zero_neighbours         
+            if mask[i][j] == 1 and num_of_zero_neighbours >= 3:
                 mask[i][j] = 0
-            if mask[i][j] == 0 \
-            and mask[i + 1][j] == 1 \
-            and mask[i - 1][j] == 1 \
-            and mask[i][j + 1] == 1 \
-            and mask[i][j - 1] == 1:
+            if mask[i][j] == 0 and num_of_one_neighbours >= 3:
                 mask[i][j] = 1
     return mask
 
