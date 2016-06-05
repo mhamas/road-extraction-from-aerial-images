@@ -66,7 +66,7 @@ def train_dictionary(filename, patch_size, num_images):
         visualize_dictionary(V, patch_size)
     return V
  
-patch_size = const.DICT_PATCH_SIZE
-fn = "../data/training/groundtruth/"
-num_images = 50
-train_dictionary(fn, patch_size, num_images)
+# patch_size = const.DICT_PATCH_SIZE
+# fn = "../data/training/groundtruth/"
+# num_images = 50
+# train_dictionary(fn, patch_size, num_images)
