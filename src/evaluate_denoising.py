@@ -25,7 +25,7 @@ D = dict_train.get_dictionary()
 
 # Load some result image and denoise it using our dictionary
 imageid = "satImage_035"
-imageid = "satImage_041"
+imageid = "satImage_007"
 image_filename = "../data/CNN_Output/Training/Probabilities/raw_" + imageid + ".png"
 ref_filename = "../data/training/groundtruth/" + imageid + ".png"
 
