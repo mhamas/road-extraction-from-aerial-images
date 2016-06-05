@@ -73,7 +73,7 @@ def get_dictionary():
     		
     if (not loaded):
         fn = "../data/training/groundtruth/"
-        num_images = 50 
+        num_images = 100 
         D = train_dictionary(fn, const.DICT_PATCH_SIZE, num_images)
     
     if not os.path.exists('../tmp'):
