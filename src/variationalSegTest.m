@@ -1,6 +1,9 @@
-img = im2double(imread('../data/CNN_Output/Training/Probabilities/raw_satImage_007.png'));
-ptcSize = 16;
-img = imresize(img, size(img) / ptcSize, 'nearest');
+% img = im2double(imread('../data/CNN_Output/Training/Probabilities/raw_satImage_007.png'));
+% ptcSize = 16;
+% img = imresize(img, size(img) / ptcSize, 'nearest');
+
+img = im2double(imread('2016-06-05.png'));
+
 
 h = size(img, 1);
 w = size(img, 2);
