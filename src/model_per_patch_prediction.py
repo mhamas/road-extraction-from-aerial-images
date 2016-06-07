@@ -31,10 +31,10 @@ BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 1800 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
-BASE_LEARNING_RATE = 0.1
+BASE_LEARNING_RATE = 0.01
 DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
@@ -43,10 +43,10 @@ IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
-VALIDATE = True
+VALIDATE = False
 VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = True
+VISUALIZE_PREDICTION_ON_TRAINING_SET = False
 VISUALIZE_NUM = -1 # -1 means visualize all
 
 RUN_ON_TEST_SET = True
@@ -69,6 +69,12 @@ def initialization_check():
     if const.IMG_HEIGHT % const.IMG_PATCH_SIZE != 0 or const.IMG_WIDTH % const.IMG_PATCH_SIZE != 0:
         print("Error: Patch size must divide both image height and width.")
         sys.exit(1)
+    if const.IMG_CONTEXT_SIZE < const.IMG_PATCH_SIZE:
+        print("Error: Patch size be smaller or equal than context size.")
+        sys.exit(1)
+    if (const.IMG_CONTEXT_SIZE - const.IMG_PATCH_SIZE) % 2 == 1:
+        print("Error: Border size not well defined (different between context and patch size must be even).")
+        sys.exit(1)
 
 def main(argv=None):  # pylint: disable=unused-argument
     initialization_check()
@@ -77,6 +83,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     ######################
     print("----------- SETTINGS -----------")
     print("Batch size: " + str(BATCH_SIZE))
+    print("Context size: " + str(const.IMG_CONTEXT_SIZE))
+    print("Patch size: " + str(const.IMG_PATCH_SIZE))
     print("Time is termination criterion: " + str(TERMINATE_AFTER_TIME))
     print("Train for: " + str(MAX_TRAINING_TIME_IN_SEC) + "s")
     print("--------------------------------\n")
@@ -108,8 +116,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         if os.path.isfile(const.PATCHES_MEAN_PATH + ".npy"):
             os.remove(const.PATCHES_MEAN_PATH + ".npy")
         print(const.PATCHES_MEAN_PATH + ".npy" + " removed.")
-        train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE)
-        train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE)
+        train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE, 1)
+        train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE, 1)
         np.save(patches_filename, train_data)
         np.save(labels_filename, train_labels)
 
@@ -190,7 +198,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     ####################################
     ### CREATING VARIABLES FOR GRAPH ###
     ####################################
-    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, NUM_CHANNELS))
+    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.IMG_CONTEXT_SIZE, const.IMG_CONTEXT_SIZE, NUM_CHANNELS))
     train_labels_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, NUM_LABELS))
     
     ###############
@@ -201,7 +209,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     ### CONVOLUTIONAL LAYER 1 ###
     with tf.name_scope('conv1') as scope:
-        conv1_dim = 3
+        conv1_dim = 5
         conv1_num_of_maps = 16
         conv1_weights = tf.Variable(
             tf.truncated_normal([conv1_dim, conv1_dim, NUM_CHANNELS, conv1_num_of_maps],  
@@ -273,8 +281,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         
     # Get prediction for given input image 
     def get_prediction(tf_session, img, stride):
-        data = pem.zero_center(np.asarray(pem.img_crop(img, const.IMG_PATCH_SIZE, stride, 0)))
-        data_node = tf.constant(data)
+        data = pem.zero_center(np.asarray(pem.input_img_crop(img, const.IMG_PATCH_SIZE, const.IMG_BORDER_SIZE, stride, 0)))
+        data_node = tf.cast(tf.constant(data), tf.float32)
         prediction = tf_session.run(tf.nn.softmax(model(data_node)))
 
         ### UPSAMPLING ###
@@ -376,7 +384,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
         
         # Get prediction
-        stride = 4 #const.IMG_PATCH_SIZE
+        stride = const.IMG_PATCH_SIZE
         prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
@@ -430,7 +438,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         conv2 = tf.nn.conv2d(pool1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
         norm2 = tf.nn.lrn(relu2)
-        pool2 = norm2
+        pool2 = tf.nn.max_pool(norm2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         # CONV. LAYER 3
         conv3 = tf.nn.conv2d(pool2, conv3_weights, strides=[1, 1, 1, 1], padding='SAME')
@@ -526,8 +534,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     tf.scalar_summary('error_validation', error_validation_tensor)
 
     # Create the validation model here to prevent recreating large constant nodes in graph later
-    data_node = tf.constant(np.asarray(validation_data))
-    validation_model = model(data_node)
+    if VALIDATE:
+        data_node = tf.cast(tf.constant(np.asarray(validation_data)),tf.float32)
+        validation_model = model(data_node)
 
     ### SUMMARY OF WEIGHTS ###
     all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
@@ -543,7 +552,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     ### OPTIMIZER SETUP ###
     #######################
     batch = tf.Variable(0)
-    learning_rate = tf.Variable(0.01)
+    learning_rate = tf.Variable(BASE_LEARNING_RATE)
     # tf.train.exponential_decay(
     #     BASE_LEARNING_RATE,  # Base learning rate.
     #     batch * BATCH_SIZE,  # Current index into the dataset.
