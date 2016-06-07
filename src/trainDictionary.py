@@ -1,20 +1,15 @@
 from time import time
 
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy as sp
-import matplotlib.image as mpimg
 
 import data_loading_module as dlm
 import constants as const
 
-from PIL import Image
-
 from sklearn.decomposition import MiniBatchDictionaryLearning
 from sklearn.feature_extraction.image import extract_patches_2d
-from sklearn.feature_extraction.image import reconstruct_from_patches_2d
-from sklearn.utils.testing import SkipTest
-from sklearn.utils.fixes import sp_version
 
 def visualize_dictionary(V, patch_size):
     plt.figure(figsize=(4.2, 4))
@@ -65,8 +60,23 @@ def train_dictionary(filename, patch_size, num_images):
     if (showImages):
         visualize_dictionary(V, patch_size)
     return V
- 
-patch_size = const.DICT_PATCH_SIZE
-fn = "../data/training/groundtruth/"
-num_images = 50
-train_dictionary(fn, patch_size, num_images)
+    
+def get_dictionary():
+    LOAD_DICT_CACHE = True
+    CACHE_FILE_NAME = '../tmp/dict_cache.npy'
+    loaded = False
+    if (LOAD_DICT_CACHE):
+        if os.path.isfile(CACHE_FILE_NAME):
+            D = np.load(CACHE_FILE_NAME)
+            loaded = True
+            print('Loaded dictionary from file')
+    		
+    if (not loaded):
+        fn = "../data/training/groundtruth/"
+        num_images = 100 
+        D = train_dictionary(fn, const.DICT_PATCH_SIZE, num_images)
+    
+    if not os.path.exists('../tmp'):
+        os.makedirs('../tmp')
+    np.save(CACHE_FILE_NAME, D)    
+    return D

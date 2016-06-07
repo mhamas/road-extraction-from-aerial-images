@@ -1,6 +1,10 @@
 import numpy as np
 import scipy
 
+import trainDictionary as dict_train
+import denoise_dictionary as dict_denoise
+import denoise_low_rank as lowrank_denoise
+
 # labels - 1 hot array of labels for each patch
 # returned mask has size (# of patches) x (# of patches)
 # (e.g. 25x25 for 16x16 patches and 400x400 image)
@@ -56,4 +60,14 @@ def postprocess_prediction(prediction,  width, height):
     mask = set_to_zero_if_no_neighbours(mask)
     # mask = scipy.signal.medfilt(mask, 3)
     # scipy.misc.imsave('test_after.png', mask)
+    
+    # dictionary based denoising
+#    D = dict_train.get_dictionary()
+#    mask = np.zeros(mask.shape)
+#    mask[dict_denoise.denoiseImg(prediction[:][1], D) >= 0.5] = 1
+    
+    # simple low rank approximation
+#    mask = np.zeros(mask.shape)
+#    mask[lowrank_denoise.denoiseImg(prediction[:][1]) >= 0.5] = 1
+    
     return mask_to_prediction(mask)
