@@ -49,7 +49,7 @@ VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1 # -1 means visualize all
 
-RUN_ON_TEST_SET = False
+RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -272,10 +272,31 @@ def main(argv=None):  # pylint: disable=unused-argument
         print("----------------------------------------------\n")
         
     # Get prediction for given input image 
-    def get_prediction(tf_session, img):
-        data = pem.zero_center(np.asarray(pem.img_crop(img, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, 0)))
+    def get_prediction(tf_session, img, stride):
+        data = pem.zero_center(np.asarray(pem.img_crop(img, const.IMG_PATCH_SIZE, stride, 0)))
         data_node = tf.constant(data)
         prediction = tf_session.run(tf.nn.softmax(model(data_node)))
+
+        ### UPSAMPLING ###
+        imgheight = img.shape[0]
+        imgwidth = img.shape[1]
+        prediction_img_per_pixel = np.zeros((imgheight, imgwidth))
+        count_per_pixel = np.zeros((imgheight, imgwidth))
+        idx = 0
+        for i in range(0,imgheight - const.IMG_PATCH_SIZE + 1, stride):
+            for j in range(0,imgwidth - const.IMG_PATCH_SIZE + 1, stride):
+                prediction_img_per_pixel[j : j + const.IMG_PATCH_SIZE, i : i + const.IMG_PATCH_SIZE] += prediction[idx][1]
+                count_per_pixel[j : j + const.IMG_PATCH_SIZE, i : i + const.IMG_PATCH_SIZE] += 1.0
+                idx += 1
+
+        prediction = np.zeros((imgheight * imgwidth, 2))
+        idx = 0
+        for i in range(imgheight):
+            for j in range(imgwidth):
+                prediction[idx][1] = prediction_img_per_pixel[j][i] / count_per_pixel[j][i]
+                prediction[idx][0] = 1.0 - prediction[idx][1]
+                idx += 1
+        ### END OF UPSAMPLING ###
 
         return prediction
 
@@ -329,6 +350,24 @@ def main(argv=None):  # pylint: disable=unused-argument
             new_img = Image.blend(background, overlay, 0.2)
             return new_img
         ### END OF AUXILIARY FUNCTION 2 ###
+        
+        def pixels_to_patches(img, round = False, foreground_threshold = 0.5, stride = const.IMG_PATCH_SIZE):
+            res_img = np.zeros(img.shape)
+            for i in range(0, img.shape[0], stride):
+                for j in range(0, img.shape[1], stride):
+                    tmp = np.zeros((stride, stride))
+                    tmp[0 : stride, 0 : stride] = img[j : j + stride, i : i + stride]
+                    tmp[tmp < 0.5] = 0
+                    tmp[tmp >= 0.5] = 1
+                    res_img[j : j + stride, i : i + stride] = np.mean(tmp)
+
+                    # res_img[j : j + stride, i : i + stride] = np.mean(img[j : j + stride, i : i + stride])
+                    if round:
+                        if res_img[j, i] >= foreground_threshold:
+                            res_img[j : j + stride, i : i + stride] = 1
+                        else:
+                            res_img[j : j + stride, i : i + stride] = 0
+            return res_img
 
         # Read images from disk
         img = mpimg.imread(input_path)
@@ -337,23 +376,39 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
         
         # Get prediction
-        prediction = get_prediction(tf_session, img)
-
+        stride = 4 #const.IMG_PATCH_SIZE
+        prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
         #     prediction = pm.postprocess_prediction(prediction, int(np.sqrt(prediction.shape[0])), int(np.sqrt(prediction.shape[0])))
         #######################
 
-        prediction_as_img = label_to_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
-        prediction_as_binary_img = label_to_binary_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
+        # Show per pixel probabilities
+        prediction_as_per_pixel_img = label_to_img(img.shape[0], img.shape[1], 1, 1, prediction)
+
+        # Show per patch probabilities
+        prediction_as_img = pixels_to_patches(prediction_as_per_pixel_img)       
+
+        # Rounded to 0 / 1 - per pixel
+        prediction_as_binary_per_pixel_img = label_to_binary_img(img.shape[0], img.shape[1], 1, 1, prediction)
+        
+        # Round to 0 / 1 - per patch
+        prediction_as_binary_img = pixels_to_patches(prediction_as_per_pixel_img, True)     
+
+
         # Save output to disk
         # Overlay
-        oimg = make_img_overlay(img, prediction_as_binary_img, img_truth)
-        oimg.save(output_path_overlay)
-        # Raw image
-        scipy.misc.imsave(output_path_raw, prediction_as_img)
+        oimg = make_img_overlay(img, prediction_as_binary_per_pixel_img, img_truth)
+        oimg.save(output_path_overlay + "_pixels.png")
 
-        return (prediction, prediction_as_img)
+        oimg2 = make_img_overlay(img, prediction_as_binary_img, img_truth)
+        oimg2.save(output_path_overlay + "_patches.png")
+
+        # Raw image
+        scipy.misc.imsave(output_path_raw + "_pixels.png", prediction_as_per_pixel_img)
+        scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
+
+        return (prediction, prediction_as_binary_img)
 
     def validate(validation_model, labels):
         print("\n --- Validation ---")
@@ -613,9 +668,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             for i in range(1, limit):
                 print ("Image: " + str(i))
                 img_name = "satImage_%.3d" % i
-                img_name = img_name + ".png"
-                input_path = train_data_filename + img_name
-                truth_path = train_labels_filename + img_name
+                input_path = train_data_filename + img_name +".png"
+                truth_path = train_labels_filename + img_name + ".png"
                 output_path_overlay = prediction_training_dir + "overlay_" + img_name
                 output_path_raw = prediction_training_dir + "raw_" + img_name
 
@@ -637,8 +691,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                     print("Test img: " + str(i))
                     # Visualization
-                    img_name = "test_" + str(i) + ".png"
-                    input_path = test_data_filename + img_name
+                    img_name = "test_" + str(i)
+                    input_path = test_data_filename + img_name + ".png"
                     output_path_overlay = prediction_test_dir + "overlay_" + img_name
                     output_path_raw = prediction_test_dir + "raw_" + img_name
 
