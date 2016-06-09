@@ -22,14 +22,16 @@ def extract_data(filename, num_images,  num_of_transformations = 6, patch_size =
     IMG_HEIGHT = imgs[0].shape[1]
     N_PATCHES_PER_IMAGE = (const.IMG_WIDTH / patch_size) * (const.IMG_HEIGHT / patch_size)
     print('Extracting patches...')
-    img_patches = [pem.img_crop(imgs[i], patch_size, patch_stride, num_of_transformations) for i in range(num_images)]
+    img_patches = [pem.input_img_crop(imgs[i], patch_size, const.IMG_BORDER_SIZE, patch_stride, num_of_transformations) for i in range(num_images)]
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
     print(str(len(data)) + ' patches extracted.')
 
-    patches = pem.zero_center(np.asarray(data))
-
+    print("Casting to numpy array")
+    tmp = np.asarray(data)
+    print("Cast successful")
+    patches = pem.zero_center(tmp)
+    print("Patches have been zero centered.")
     return patches
-
 
 # Assign a label to a patch v
 def value_to_class(v):
@@ -58,7 +60,7 @@ def extract_labels(filename, num_images, num_of_transformations = 6, patch_size 
 
     num_images = len(gt_imgs)
     print('Extracting patches...')
-    gt_patches = [pem.img_crop(gt_imgs[i], patch_size, patch_stride, num_of_transformations) for i in range(num_images)]
+    gt_patches = [pem.label_img_crop(gt_imgs[i], patch_size, patch_stride, num_of_transformations) for i in range(num_images)]
     data = np.asarray([gt_patches[i][j] for i in range(len(gt_patches)) for j in range(len(gt_patches[i]))])
     labels = np.asarray([value_to_class(np.mean(data[i])) for i in range(len(data))])
     print(str(len(data)) + ' label patches extracted.')

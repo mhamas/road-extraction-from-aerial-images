@@ -31,10 +31,10 @@ BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 1800 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
-BASE_LEARNING_RATE = 0.1
+BASE_LEARNING_RATE = 0.01
 DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
@@ -43,13 +43,13 @@ IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
-VALIDATE = True
+VALIDATE = False
 VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = True
+VISUALIZE_PREDICTION_ON_TRAINING_SET = False
 VISUALIZE_NUM = -1 # -1 means visualize all
 
-RUN_ON_TEST_SET = False
+RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -69,6 +69,12 @@ def initialization_check():
     if const.IMG_HEIGHT % const.IMG_PATCH_SIZE != 0 or const.IMG_WIDTH % const.IMG_PATCH_SIZE != 0:
         print("Error: Patch size must divide both image height and width.")
         sys.exit(1)
+    if const.IMG_CONTEXT_SIZE < const.IMG_PATCH_SIZE:
+        print("Error: Patch size be smaller or equal than context size.")
+        sys.exit(1)
+    if (const.IMG_CONTEXT_SIZE - const.IMG_PATCH_SIZE) % 2 == 1:
+        print("Error: Border size not well defined (different between context and patch size must be even).")
+        sys.exit(1)
 
 def main(argv=None):  # pylint: disable=unused-argument
     initialization_check()
@@ -77,6 +83,8 @@ def main(argv=None):  # pylint: disable=unused-argument
     ######################
     print("----------- SETTINGS -----------")
     print("Batch size: " + str(BATCH_SIZE))
+    print("Context size: " + str(const.IMG_CONTEXT_SIZE))
+    print("Patch size: " + str(const.IMG_PATCH_SIZE))
     print("Time is termination criterion: " + str(TERMINATE_AFTER_TIME))
     print("Train for: " + str(MAX_TRAINING_TIME_IN_SEC) + "s")
     print("--------------------------------\n")
@@ -108,8 +116,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         if os.path.isfile(const.PATCHES_MEAN_PATH + ".npy"):
             os.remove(const.PATCHES_MEAN_PATH + ".npy")
         print(const.PATCHES_MEAN_PATH + ".npy" + " removed.")
-        train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE)
-        train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE)
+        train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE, 1)
+        train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE, 1)
         np.save(patches_filename, train_data)
         np.save(labels_filename, train_labels)
 
@@ -190,7 +198,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     ####################################
     ### CREATING VARIABLES FOR GRAPH ###
     ####################################
-    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, NUM_CHANNELS))
+    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.IMG_CONTEXT_SIZE, const.IMG_CONTEXT_SIZE, NUM_CHANNELS))
     train_labels_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, NUM_LABELS))
     
     ###############
@@ -201,7 +209,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     ### CONVOLUTIONAL LAYER 1 ###
     with tf.name_scope('conv1') as scope:
-        conv1_dim = 3
+        conv1_dim = 5
         conv1_num_of_maps = 16
         conv1_weights = tf.Variable(
             tf.truncated_normal([conv1_dim, conv1_dim, NUM_CHANNELS, conv1_num_of_maps],  
@@ -272,10 +280,31 @@ def main(argv=None):  # pylint: disable=unused-argument
         print("----------------------------------------------\n")
         
     # Get prediction for given input image 
-    def get_prediction(tf_session, img):
-        data = pem.zero_center(np.asarray(pem.img_crop(img, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, 0)))
-        data_node = tf.constant(data)
+    def get_prediction(tf_session, img, stride):
+        data = pem.zero_center(np.asarray(pem.input_img_crop(img, const.IMG_PATCH_SIZE, const.IMG_BORDER_SIZE, stride, 0)))
+        data_node = tf.cast(tf.constant(data), tf.float32)
         prediction = tf_session.run(tf.nn.softmax(model(data_node)))
+
+        ### UPSAMPLING ###
+        imgheight = img.shape[0]
+        imgwidth = img.shape[1]
+        prediction_img_per_pixel = np.zeros((imgheight, imgwidth))
+        count_per_pixel = np.zeros((imgheight, imgwidth))
+        idx = 0
+        for i in range(0,imgheight - const.IMG_PATCH_SIZE + 1, stride):
+            for j in range(0,imgwidth - const.IMG_PATCH_SIZE + 1, stride):
+                prediction_img_per_pixel[j : j + const.IMG_PATCH_SIZE, i : i + const.IMG_PATCH_SIZE] += prediction[idx][1]
+                count_per_pixel[j : j + const.IMG_PATCH_SIZE, i : i + const.IMG_PATCH_SIZE] += 1.0
+                idx += 1
+
+        prediction = np.zeros((imgheight * imgwidth, 2))
+        idx = 0
+        for i in range(imgheight):
+            for j in range(imgwidth):
+                prediction[idx][1] = prediction_img_per_pixel[j][i] / count_per_pixel[j][i]
+                prediction[idx][0] = 1.0 - prediction[idx][1]
+                idx += 1
+        ### END OF UPSAMPLING ###
 
         return prediction
 
@@ -329,6 +358,24 @@ def main(argv=None):  # pylint: disable=unused-argument
             new_img = Image.blend(background, overlay, 0.2)
             return new_img
         ### END OF AUXILIARY FUNCTION 2 ###
+        
+        def pixels_to_patches(img, round = False, foreground_threshold = 0.5, stride = const.IMG_PATCH_SIZE):
+            res_img = np.zeros(img.shape)
+            for i in range(0, img.shape[0], stride):
+                for j in range(0, img.shape[1], stride):
+                    tmp = np.zeros((stride, stride))
+                    tmp[0 : stride, 0 : stride] = img[j : j + stride, i : i + stride]
+                    tmp[tmp < 0.5] = 0
+                    tmp[tmp >= 0.5] = 1
+                    res_img[j : j + stride, i : i + stride] = np.mean(tmp)
+
+                    # res_img[j : j + stride, i : i + stride] = np.mean(img[j : j + stride, i : i + stride])
+                    if round:
+                        if res_img[j, i] >= foreground_threshold:
+                            res_img[j : j + stride, i : i + stride] = 1
+                        else:
+                            res_img[j : j + stride, i : i + stride] = 0
+            return res_img
 
         # Read images from disk
         img = mpimg.imread(input_path)
@@ -337,23 +384,39 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
         
         # Get prediction
-        prediction = get_prediction(tf_session, img)
-
+        stride = const.IMG_PATCH_SIZE
+        prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
         #     prediction = pm.postprocess_prediction(prediction, int(np.sqrt(prediction.shape[0])), int(np.sqrt(prediction.shape[0])))
         #######################
 
-        prediction_as_img = label_to_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
-        prediction_as_binary_img = label_to_binary_img(img.shape[0], img.shape[1], const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE, prediction)
+        # Show per pixel probabilities
+        prediction_as_per_pixel_img = label_to_img(img.shape[0], img.shape[1], 1, 1, prediction)
+
+        # Show per patch probabilities
+        prediction_as_img = pixels_to_patches(prediction_as_per_pixel_img)       
+
+        # Rounded to 0 / 1 - per pixel
+        prediction_as_binary_per_pixel_img = label_to_binary_img(img.shape[0], img.shape[1], 1, 1, prediction)
+        
+        # Round to 0 / 1 - per patch
+        prediction_as_binary_img = pixels_to_patches(prediction_as_per_pixel_img, True)     
+
+
         # Save output to disk
         # Overlay
-        oimg = make_img_overlay(img, prediction_as_binary_img, img_truth)
-        oimg.save(output_path_overlay)
-        # Raw image
-        scipy.misc.imsave(output_path_raw, prediction_as_img)
+        oimg = make_img_overlay(img, prediction_as_binary_per_pixel_img, img_truth)
+        oimg.save(output_path_overlay + "_pixels.png")
 
-        return (prediction, prediction_as_img)
+        oimg2 = make_img_overlay(img, prediction_as_binary_img, img_truth)
+        oimg2.save(output_path_overlay + "_patches.png")
+
+        # Raw image
+        scipy.misc.imsave(output_path_raw + "_pixels.png", prediction_as_per_pixel_img)
+        scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
+
+        return (prediction, prediction_as_binary_img)
 
     def validate(validation_model, labels):
         print("\n --- Validation ---")
@@ -375,7 +438,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         conv2 = tf.nn.conv2d(pool1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
         norm2 = tf.nn.lrn(relu2)
-        pool2 = norm2
+        pool2 = tf.nn.max_pool(norm2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
         # CONV. LAYER 3
         conv3 = tf.nn.conv2d(pool2, conv3_weights, strides=[1, 1, 1, 1], padding='SAME')
@@ -471,8 +534,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     tf.scalar_summary('error_validation', error_validation_tensor)
 
     # Create the validation model here to prevent recreating large constant nodes in graph later
-    data_node = tf.constant(np.asarray(validation_data))
-    validation_model = model(data_node)
+    if VALIDATE:
+        data_node = tf.cast(tf.constant(np.asarray(validation_data)),tf.float32)
+        validation_model = model(data_node)
 
     ### SUMMARY OF WEIGHTS ###
     all_params_node = [conv1_weights, conv1_biases, conv2_weights, conv2_biases, conv3_weights, conv3_biases, fc1_weights, fc1_biases, fc2_weights, fc2_biases]
@@ -488,7 +552,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     ### OPTIMIZER SETUP ###
     #######################
     batch = tf.Variable(0)
-    learning_rate = tf.Variable(0.01)
+    learning_rate = tf.Variable(BASE_LEARNING_RATE)
     # tf.train.exponential_decay(
     #     BASE_LEARNING_RATE,  # Base learning rate.
     #     batch * BATCH_SIZE,  # Current index into the dataset.
@@ -613,9 +677,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             for i in range(1, limit):
                 print ("Image: " + str(i))
                 img_name = "satImage_%.3d" % i
-                img_name = img_name + ".png"
-                input_path = train_data_filename + img_name
-                truth_path = train_labels_filename + img_name
+                input_path = train_data_filename + img_name +".png"
+                truth_path = train_labels_filename + img_name + ".png"
                 output_path_overlay = prediction_training_dir + "overlay_" + img_name
                 output_path_raw = prediction_training_dir + "raw_" + img_name
 
@@ -637,8 +700,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                     print("Test img: " + str(i))
                     # Visualization
-                    img_name = "test_" + str(i) + ".png"
-                    input_path = test_data_filename + img_name
+                    img_name = "test_" + str(i)
+                    input_path = test_data_filename + img_name + ".png"
                     output_path_overlay = prediction_test_dir + "overlay_" + img_name
                     output_path_raw = prediction_test_dir + "raw_" + img_name
 
