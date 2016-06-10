@@ -1,6 +1,8 @@
 import os
 import sys
 import urllib
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.image as mpimg
 from PIL import Image
 
@@ -31,7 +33,7 @@ BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 6 * 3600 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.01
@@ -43,14 +45,16 @@ IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
-VALIDATE = False
+VALIDATE = True
 VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = False
-VISUALIZE_NUM = -1 # -1 means visualize all
+VISUALIZE_PREDICTION_ON_TRAINING_SET = True
+VISUALIZE_FROM_INC = 1
+VISUALIZE_TO_INC = 10 # -1 means visualize all
 
 RUN_ON_TEST_SET = True
-TEST_SIZE = 50
+TEST_FROM_INC = 1
+TEST_TO_INC = 10
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
 
@@ -253,7 +257,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
     ### FULLY CONNECTED LAYER 1 ###
-    tmp_neuron_num = int((const.IMG_PATCH_SIZE / 8) * (const.IMG_PATCH_SIZE / 8) * conv4_num_of_maps);
+    tmp_neuron_num = int((const.IMG_CONTEXT_SIZE / 16) * (const.IMG_CONTEXT_SIZE / 16) * conv4_num_of_maps);
     with tf.name_scope('fc1') as scope:
         fc1_size = 64
         fc1_weights = tf.Variable(  
@@ -384,7 +388,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
         
         # Get prediction
-        stride = const.IMG_PATCH_SIZE
+        stride = const.IMG_PATCH_HIGH_RES_SIZE
         prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
@@ -673,8 +677,8 @@ def main(argv=None):  # pylint: disable=unused-argument
             prediction_training_dir = prefix_results + "predictions_training/"
             if not os.path.isdir(prediction_training_dir):
                 os.mkdir(prediction_training_dir)
-            limit = TRAINING_SIZE + 1 if VISUALIZE_NUM == -1 else VISUALIZE_NUM
-            for i in range(1, limit):
+            limit = TRAINING_SIZE + 1 if VISUALIZE_TO_INC == -1 else VISUALIZE_TO_INC + 1
+            for i in range(VISUALIZE_FROM_INC, limit):
                 print ("Image: " + str(i))
                 img_name = "satImage_%.3d" % i
                 input_path = train_data_filename + img_name +".png"
@@ -696,7 +700,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             with open(prefix_results + "submission.csv", "w") as csvfile:
                 writer = csv.writer(csvfile, delimiter=',')
                 writer.writerow(['id','prediction'])
-                for i in range(1, TEST_SIZE + 1):
+                for i in range(TEST_FROM_INC, TEST_TO_INC+ 1):
 
                     print("Test img: " + str(i))
                     # Visualization
