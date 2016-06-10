@@ -18,16 +18,16 @@ sigma = 5;
 numRows = size(I, 1);
 numCols = size(I, 2);
 N = numRows * numCols;
-% neighbors = 8;
-neighbors = 4;
+% shifts =  [1 0; 1 1; 0 1; -1 1; -1 0; -1 -1; 0 -1; 1 -1];
+shifts =  [1 0; 0 1; -1 0; 0 -1];
+neighbors = size(shifts, 1);
 
 i_indices = reshape(1:N, numRows, numCols); %indices of all image pixels
 i_indices = i_indices(2:numRows - 1, 2:numCols - 1); % crop to not use borders for simplicity
 i_indices = i_indices(:)';
 idxI = repmat(i_indices, 1, neighbors); % replicate for each offset
 
-% shifts =  [1 0; 1 1; 0 1; -1 1; -1 0; -1 -1; 0 -1; 1 -1];
-shifts =  [1 0; 0 1; -1 0; 0 -1];
+
 
 offsets = [shifts(:, 1) + shifts(:, 2) * numRows]';
 offsets = repmat(offsets, length(i_indices), 1);
