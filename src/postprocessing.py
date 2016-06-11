@@ -43,19 +43,27 @@ def mask_to_prediction(mask):
 # Basic 4 connectivity neighbour filtering
 def set_to_zero_if_no_neighbours(mask):
     (height, width) = mask.shape
-    for i in range(1, height - 1):
-        for j in range(1, width - 1):
+    for i in range(0, height):
+        for j in range(0, width):
+            if ((j == 0 and i == 0) or 
+                (j == 0 and i == height - 1) or
+                (j == width - 1 and i == 0) or
+                (j == width - 1 and i == height - 1)):
+                    continue                
+            
             num_of_zero_neighbours = 0
-            if mask[i - 1][j] == 0:
+            if i > 0 and mask[i - 1][j] == 0:
                 num_of_zero_neighbours += 1
-            if mask[i + 1][j] == 0:
+            if i < height - 1 and mask[i + 1][j] == 0:
                 num_of_zero_neighbours += 1
-            if mask[i][j - 1] == 0:
+            if j > 0 and mask[i][j - 1] == 0:
                 num_of_zero_neighbours += 1
-            if mask[i][j + 1] == 0:
+            if j < width - 1 and mask[i][j + 1] == 0:
                 num_of_zero_neighbours += 1
+                
+            num_neighbors = 3 if (j == 0 or j == width - 1 or i == 0 or i == height - 1) else 4            
 
-            num_of_one_neighbours = 4 - num_of_zero_neighbours         
+            num_of_one_neighbours = num_neighbors - num_of_zero_neighbours         
             if mask[i][j] == 1 and num_of_zero_neighbours >= 3:
                 mask[i][j] = 0
             if mask[i][j] == 0 and num_of_one_neighbours >= 3:
@@ -86,10 +94,13 @@ def apply_postprocessing(img, dictionary):
     img = resize(img, (img.shape[0] // const.IMG_PATCH_SIZE, img.shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
     img2 = np.zeros(img.shape)
     img2[img >= 0.5] = 1 # this would be the prediction without post processing
-        
-    result = dict_denoise.denoiseImg(img, dictionary)
-    finalOutput = np.zeros(img.shape)
-    finalOutput[result >= 0.5] = 1            
+    
+    
+    finalOutput = set_to_zero_if_no_neighbours(img2)
+    
+#    result = dict_denoise.denoiseImg(img, dictionary)
+#    finalOutput = np.zeros(img.shape)
+#    finalOutput[result >= 0.5] = 1            
             
     # when using low rank approx, use 3 atoms instead of just 1
 #    finalOutputLowRank = np.zeros(img.shape)
@@ -101,7 +112,7 @@ def apply_postprocessing(img, dictionary):
     return finalOutput
     
 def create_submission_file(images):
-    prefix_results = "../results/"
+    prefix_results = const.RESULTS_PATH + "/"
     if not os.path.isdir(prefix_results):
         os.mkdir(prefix_results)
     
@@ -122,6 +133,20 @@ def create_submission_file(images):
                     rows_out = np.concatenate((rows_out, next_row))
             writer.writerows(rows_out)
         csvfile.close()    
+        
+def save_images(images, imSizes):
+    postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
+    fn = postpro_fn + "/test/"
+
+    if not os.path.isdir(const.RESULTS_PATH):
+        os.mkdir(const.RESULTS_PATH)
+    if not os.path.isdir(postpro_fn):
+        os.mkdir(postpro_fn)
+    if not os.path.isdir(fn):
+        os.mkdir(fn)
+        
+    for i in range(0, len(images)):
+        scipy.misc.imsave(fn + ("satImage_%d" % i) + ".png" , resize(images[i],  imSizes[i], order=0, preserve_range=True))
     
 def generate_output():  
     #prob_fn = "../data/CNN_Output/Test/Probabilities/"
@@ -133,6 +158,7 @@ def generate_output():
     verbose = False
     num_images = 50
     outputImages = []
+    imSizes = []
     for i in range(1, num_images+1):
     #    imageid = "raw_test_%d_patches" % i
         imageid = "raw_test_%d_pixels" % i
@@ -141,10 +167,12 @@ def generate_output():
         if os.path.isfile(image_filename):
             if verbose:
                 print ('Loading ' + image_filename)
-            img = mpimg.imread(image_filename)      
+            img = mpimg.imread(image_filename) 
+            imSizes.append(img.shape)
             outputImages.append(apply_postprocessing(img, D) )
         else:
             print ('File ' + image_filename + ' does not exist')
             
+    save_images(outputImages, imSizes)
     create_submission_file(outputImages)
     

@@ -15,6 +15,7 @@ import data_loading_module as dlm
 def evaluate_error(img, ref):
     return np.sqrt(np.sum((img - ref) ** 2)) / np.prod(img.shape)
     
+prob_fn = "../results/CNN_Output/training/raw/"
 
 #%% Show dictionary denoising
 
@@ -26,7 +27,7 @@ D = dict_train.get_dictionary()
 # Load some result image and denoise it using our dictionary
 imageid = "satImage_035"
 imageid = "satImage_007"
-image_filename = "../data/CNN_Output/Training/Probabilities/raw_" + imageid + ".png"
+image_filename = prob_fn + "raw_" + imageid + "_patches.png"
 ref_filename = "../data/training/groundtruth/" + imageid + ".png"
 
 img = mpimg.imread(image_filename)
@@ -73,7 +74,7 @@ plt.show()
 #%% Evaluate dict denoising quality
 D = dict_train.get_dictionary()
 
-prob_fn = "../data/CNN_Output/Training/Probabilities/"
+prob_fn = "../results/CNN_Output/training/raw/"
 ref_fn = "../data/training/groundtruth/"
 
 totalRawError = 0
@@ -83,7 +84,7 @@ verbose = False
 num_images = 100
 for i in range(1, num_images+1):
     imageid = "satImage_%.3d" % i
-    image_filename = prob_fn + "raw_" + imageid + ".png"
+    image_filename = prob_fn + "raw_" + imageid + "_patches.png"
     ref_filename = ref_fn + imageid + ".png"
 
     if os.path.isfile(image_filename) and os.path.isfile(ref_filename):

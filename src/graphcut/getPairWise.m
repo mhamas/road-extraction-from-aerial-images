@@ -14,12 +14,12 @@ function pairWise = getPairWise(I, lambda)
 
 % Consider 8 neighborhood for each pixel
 
-sigma = 5;
+sigma = 10;
 numRows = size(I, 1);
 numCols = size(I, 2);
 N = numRows * numCols;
-% shifts =  [1 0; 1 1; 0 1; -1 1; -1 0; -1 -1; 0 -1; 1 -1];
-shifts =  [1 0; 0 1; -1 0; 0 -1];
+shifts =  [1 0; 1 1; 0 1; -1 1; -1 0; -1 -1; 0 -1; 1 -1];
+% shifts =  [1 0; 0 1; -1 0; 0 -1];
 neighbors = size(shifts, 1);
 
 i_indices = reshape(1:N, numRows, numCols); %indices of all image pixels

@@ -8,6 +8,8 @@ IMG_PATCH_STRIDE = 8
 
 PATCHES_MEAN_PATH = "../objects/patches_mean"
 
+RESULTS_PATH = "../results"
+
 # post processing
 DICT_PATCH_SIZE = (5, 5)
 LOW_RANK_TARGET = 3 # desired rank of output
