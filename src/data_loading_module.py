@@ -94,11 +94,11 @@ def pixel_to_patch_labels(im, patch_size, stride):
     return output
     
 # extract labels from ground truth as label images
-def extract_label_images(filename, num_images, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE):
+def extract_label_images(filename, num_images, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE, imgBaseName = "satImage_%.3d"):
     """Extract the labels into label images"""
     gt_imgs = []
     for i in range(1, num_images+1):
-        imageid = "satImage_%.3d" % i
+        imageid = imgBaseName % i
         image_filename = filename + imageid + ".png"
         if os.path.isfile(image_filename):
             print ('Loading ' + image_filename)
@@ -112,4 +112,21 @@ def extract_label_images(filename, num_images, patch_size = const.IMG_PATCH_SIZE
     gt_patches = [pixel_to_patch_labels(gt_imgs[i], patch_size, patch_stride) for i in range(num_images)]
     
     return gt_patches
+    
+# reads in an array of images
+def read_image_array(filename, num_images, imgBaseName = "satImage_%.3d"):
+    """Loads an array of images from the file system """
+    imgs = []
+    for i in range(1, num_images+1):
+        imageid = imgBaseName % i
+        image_filename = filename + imageid + ".png"
+        if os.path.isfile(image_filename):
+            print ('Loading ' + image_filename)
+            img = mpimg.imread(image_filename)
+            imgs.append(img)
+        else:
+            print ('File ' + image_filename + ' does not exist')
+
+    num_images = len(imgs)
+    return imgs
     

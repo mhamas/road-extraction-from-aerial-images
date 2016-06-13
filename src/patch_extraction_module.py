@@ -10,6 +10,8 @@ def zero_center(patches):
         #print("Loading mean patch from the disk")
         mean_patch = np.load(const.PATCHES_MEAN_PATH + ".npy")  
     else:
+        if not os.path.isdir(const.OBJECTS_PATH):            
+            os.makedirs(const.OBJECTS_PATH)
         print("Computing mean patch")
         mean_patch = np.mean(patches, axis = 0)
         print("Mean computed")

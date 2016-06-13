@@ -134,34 +134,43 @@ def create_submission_file(images):
             writer.writerows(rows_out)
         csvfile.close()    
         
-def save_images(images, imSizes):
-    postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
-    fn = postpro_fn + "/test/"
-
-    if not os.path.isdir(const.RESULTS_PATH):
-        os.mkdir(const.RESULTS_PATH)
-    if not os.path.isdir(postpro_fn):
-        os.mkdir(postpro_fn)
+def save_images(fn, images, imSizes):
     if not os.path.isdir(fn):
-        os.mkdir(fn)
+        os.makedirs(fn)
         
     for i in range(0, len(images)):
         scipy.misc.imsave(fn + ("satImage_%d" % i) + ".png" , resize(images[i],  imSizes[i], order=0, preserve_range=True))
     
 def generate_output():  
+    postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
+
+    # test set
+    prob_fn = "../results/CNN_Output/test/high_res_raw/"  
+    inputFileName = "raw_test_%d_pixels"
+    outputDir = postpro_fn + "/test/"
+    num_images = 50
+    
+    # training set
+    prob_fn = "../results/CNN_Output/training/high_res_raw/"  
+    inputFileName = "raw_satImage_%.3d_pixels"
+    outputDir = postpro_fn + "/training/"
+    num_images = 100
+    
+
     #prob_fn = "../data/CNN_Output/Test/Probabilities/"
     #prob_fn = "../results/CNN_Output/test/raw/"
-    prob_fn = "../results/CNN_Output/test/high_res_raw/"  
-    
-    D = dict_train.get_dictionary()
+#    prob_fn = "../results/CNN_Output/training/high_res_raw/"  
 
+
+
+    D = dict_train.get_dictionary()
+    
     verbose = False
-    num_images = 50
     outputImages = []
     imSizes = []
     for i in range(1, num_images+1):
     #    imageid = "raw_test_%d_patches" % i
-        imageid = "raw_test_%d_pixels" % i
+        imageid = inputFileName % i
         image_filename = prob_fn + imageid + ".png"
     
         if os.path.isfile(image_filename):
@@ -173,6 +182,6 @@ def generate_output():
         else:
             print ('File ' + image_filename + ' does not exist')
             
-    save_images(outputImages, imSizes)
+    save_images(outputDir, outputImages, imSizes)
     create_submission_file(outputImages)
     

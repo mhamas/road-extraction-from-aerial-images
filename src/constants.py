@@ -6,7 +6,8 @@ IMG_CONTEXT_SIZE = 32
 IMG_BORDER_SIZE = int((IMG_CONTEXT_SIZE - IMG_PATCH_SIZE) / 2)
 IMG_PATCH_STRIDE = 8
 
-PATCHES_MEAN_PATH = "../objects/patches_mean"
+OBJECTS_PATH = "../objects/"
+PATCHES_MEAN_PATH = OBJECTS_PATH + "patches_mean"
 
 RESULTS_PATH = "../results"
 
