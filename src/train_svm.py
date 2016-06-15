@@ -11,6 +11,7 @@ import constants as const
 
 from sklearn.externals import joblib
 
+# Trains an SVM classifier to postprocess the CNN output
 
 def trainClassifier():
     print("Training SVM classifier (might take a while)")    
