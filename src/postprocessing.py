@@ -12,6 +12,8 @@ import constants as const
 import trainDictionary as dict_train
 import denoise_dictionary as dict_denoise
 import denoise_low_rank as lowrank_denoise
+import train_svm as svm_train
+import denoise_svm as svm_denoise
 
 
 # labels - 1 hot array of labels for each patch
@@ -89,14 +91,19 @@ def postprocess_prediction(prediction,  width, height):
     
     return mask_to_prediction(mask)
     
-def apply_postprocessing(img, dictionary):
+def apply_postprocessing(img, dictionary, svm):
     # resize img to have 1 px for each 16 x 16 patch
     img = resize(img, (img.shape[0] // const.IMG_PATCH_SIZE, img.shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
     img2 = np.zeros(img.shape)
     img2[img >= 0.5] = 1 # this would be the prediction without post processing
     
     
-    finalOutput = set_to_zero_if_no_neighbours(img2)
+#    finalOutput = set_to_zero_if_no_neighbours(img2)
+    
+    result = svm_denoise.denoiseImg(img, svm)
+    finalOutput = np.zeros(img.shape)
+    finalOutput[result >= 0.5] = 1         
+    
     
 #    result = dict_denoise.denoiseImg(img, dictionary)
 #    finalOutput = np.zeros(img.shape)
@@ -134,13 +141,6 @@ def create_submission_file(images):
             writer.writerows(rows_out)
         csvfile.close()    
         
-def save_images(fn, images, imSizes):
-    if not os.path.isdir(fn):
-        os.makedirs(fn)
-        
-    for i in range(0, len(images)):
-        scipy.misc.imsave(fn + ("satImage_%d" % i) + ".png" , resize(images[i],  imSizes[i], order=0, preserve_range=True))
-    
 def generate_output():  
     postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
 
@@ -151,21 +151,19 @@ def generate_output():
     num_images = 50
     
     # training set
-    prob_fn = "../results/CNN_Output/training/high_res_raw/"  
-    inputFileName = "raw_satImage_%.3d_pixels"
-    outputDir = postpro_fn + "/training/"
-    num_images = 100
-    
-
-    #prob_fn = "../data/CNN_Output/Test/Probabilities/"
-    #prob_fn = "../results/CNN_Output/test/raw/"
 #    prob_fn = "../results/CNN_Output/training/high_res_raw/"  
+#    inputFileName = "raw_satImage_%.3d_pixels"
+#    outputDir = postpro_fn + "/training/"
+#    num_images = 100
 
 
+    if not os.path.isdir(outputDir):
+        os.makedirs(outputDir)
 
     D = dict_train.get_dictionary()
-    
-    verbose = False
+    svm = svm_train.getSVMClassifier()   
+
+    verbose = True
     outputImages = []
     imSizes = []
     for i in range(1, num_images+1):
@@ -178,10 +176,10 @@ def generate_output():
                 print ('Loading ' + image_filename)
             img = mpimg.imread(image_filename) 
             imSizes.append(img.shape)
-            outputImages.append(apply_postprocessing(img, D) )
+            outputImages.append(apply_postprocessing(img, D, svm))
+            scipy.misc.imsave(outputDir + ("satImage_%d" % i) + ".png" , resize(outputImages[i - 1],  img.shape, order=0, preserve_range=True))
         else:
             print ('File ' + image_filename + ' does not exist')
             
-    save_images(outputDir, outputImages, imSizes)
     create_submission_file(outputImages)
     
