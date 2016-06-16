@@ -49,11 +49,12 @@ def trainClassifier():
     X = np.asarray([np.ravel(np.squeeze(np.asarray(p))) for p in patches])
     y = np.squeeze(np.asarray(labels))
     
+    print("Fitting SVM...")
     clf = svm.SVC()
     clf.fit(X, y)
 
     # Evaluate model on training data
-    y_new = np.squeeze(np.asarray([np.ravel(np.squeeze(np.asarray(p))[2, 2]) for p in patches]))
+    y_new = np.squeeze(np.asarray([np.ravel(np.squeeze(np.asarray(p))[const.POSTPRO_SVM_PATCH_SIZE // 2, const.POSTPRO_SVM_PATCH_SIZE // 2]) for p in patches]))
     error = np.sum((y - y_new) ** 2) / len(y_new)
     print("Training set accuracy: " + str(1 - error))
     
