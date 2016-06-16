@@ -1,26 +1,30 @@
 import os
+import time as time
+
 import matplotlib.pyplot as plt
+import numpy as np
+
 from skimage.transform import resize
 from sklearn import svm
-
-import numpy as np
+from sklearn.externals import joblib
+from sklearn.neural_network import BernoulliRBM
+from sklearn.pipeline import Pipeline
 
 import patch_extraction_module as pem 
 import data_loading_module as dlm
 import constants as const
 
-from sklearn.externals import joblib
-
-# Trains an SVM classifier to postprocess the CNN output
+# POSTPROCESSING: Trains an SVM classifier to postprocess the CNN output
 
 def trainClassifier():
     print("Training SVM classifier (might take a while)")    
-    
+    t = time.time()
+   
     train_data_filename = "../results/CNN_Output/training/raw/"
     #train_data_filename = "../data/training/images/"
     train_labels_filename = "../data/training/groundtruth/"
     
-    num_images = 100
+    num_images = 10
     
     # ground truth label images and CNN output
     labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE)
@@ -28,17 +32,23 @@ def trainClassifier():
     
     for i in range(0, len(labelsCNN)):
         labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.IMG_PATCH_SIZE, labelsCNN[i].shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
-    
-    
+        
+    elapsed = time.time() - t
+    print("Loading training data took: " + str(elapsed) + " s")
     #plt.figure()
     #plt.imshow(labelsCNN[0])
     #plt.show()
 
     # extract patches and corresponding groundtruth center value
+    t = time.time()
     patch_size = 1
     border_size = const.POSTPRO_SVM_PATCH_SIZE // 2
-    stride = 1
-    nTransforms = 5
+    stride = 2
+    nTransforms = 3
+    
+# OLD SETTINGS
+#    stride = 1
+#    nTransforms = 5
     
     patches = []
     labels = []
@@ -49,20 +59,35 @@ def trainClassifier():
     X = np.asarray([np.ravel(np.squeeze(np.asarray(p))) for p in patches])
     y = np.squeeze(np.asarray(labels))
     
+    elapsed = time.time() - t
+    print("Extracting patches from training data took: " + str(elapsed) + " s")
+    print("Training set size: " + str(X.shape))
     print("Fitting SVM...")
-    clf = svm.SVC()
-    clf.fit(X, y)
+    t = time.time()
+    
+    svc_model = svm.SVC()
+    rbm = BernoulliRBM(random_state=0, verbose=True)
+
+    classifier = Pipeline(steps=[('rbm', rbm), ('svm', svc_model)])
+    
+    rbm.learning_rate = 0.06
+    rbm.n_iter = 20
+    rbm.n_components = 50
+
+    classifier.fit(X, y)
+    elapsed = time.time() - t
+    print("Training SVM took " + str(elapsed) + " s")
 
     # Evaluate model on training data
     y_new = np.squeeze(np.asarray([np.ravel(np.squeeze(np.asarray(p))[const.POSTPRO_SVM_PATCH_SIZE // 2, const.POSTPRO_SVM_PATCH_SIZE // 2]) for p in patches]))
     error = np.sum((y - y_new) ** 2) / len(y_new)
     print("Training set accuracy: " + str(1 - error))
     
-    y_new = clf.predict(X)
+    y_new = classifier.predict(X)
     error = np.sum((y - y_new) ** 2) / len(y_new)
     print("Postprocessing training set accuracy: " + str(1 - error))    
     
-    return clf
+    return classifier
 
 def getSVMClassifier():
     fn = const.OBJECTS_PATH +"postprocessor.pkl"
