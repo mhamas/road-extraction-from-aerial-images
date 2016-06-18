@@ -21,11 +21,6 @@ import cProfile
 import pstats
 import io
 
-if __name__ == '__main__':
-    # Start profiling
-    pr = cProfile.Profile()
-    pr.enable()
-
 ROOT_DIR = "../"
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
@@ -48,7 +43,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
-IMG_PATCHES_RESTORE = True
+IMG_PATCHES_RESTORE = False
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
@@ -58,7 +53,7 @@ VALIDATION_STEP = 500  # must be multiple of RECORDING_STEP
 VISUALIZE_PREDICTION_ON_TRAINING_SET = False
 VISUALIZE_NUM = -1  # -1 means visualize all
 
-RUN_ON_TEST_SET = True
+RUN_ON_TEST_SET = False
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -89,6 +84,11 @@ def initialization_check():
 
 
 def main(argv=None):  # pylint: disable=unused-argument
+
+    # Start profiling
+    pr = cProfile.Profile()
+    pr.enable()
+
     initialization_check()
     ######################
     ### INITIALIZATION ###
@@ -740,11 +740,6 @@ def main(argv=None):  # pylint: disable=unused-argument
                     writer.writerows(rows_out)
             csvfile.close()
 
-
-if __name__ == '__main__':
-
-    tf.app.run()
-
     # End profiling and save stats
     pr.disable()
     s = io.StringIO()
@@ -752,5 +747,10 @@ if __name__ == '__main__':
     stream = open('profile.txt', 'w');
     ps = pstats.Stats(pr, stream=stream).sort_stats(sortby)
     ps.print_stats()
+
+
+if __name__ == '__main__':
+
+    tf.app.run()
 
 
