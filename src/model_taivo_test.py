@@ -21,6 +21,11 @@ import cProfile
 import pstats
 import io
 
+if __name__ == '__main__':
+    # Start profiling
+    pr = cProfile.Profile()
+    pr.enable()
+
 ROOT_DIR = "../"
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
@@ -737,9 +742,6 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
 if __name__ == '__main__':
-    # Start profiling
-    pr = cProfile.Profile()
-    pr.enable()
 
     tf.app.run()
 
