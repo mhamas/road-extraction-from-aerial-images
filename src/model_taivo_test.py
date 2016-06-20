@@ -1,7 +1,8 @@
 import os
 import sys
 import urllib
-import matplotlib.image as mpimg
+#import matplotlib.image as mpimg
+from scipy import misc
 from PIL import Image
 
 import csv
@@ -32,7 +33,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32
 BALANCE_SIZE_OF_CLASSES = True  # recommended to leave True
 
-RESTORE_MODEL = True
+RESTORE_MODEL = False
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 2 * 3600  # NB: 28800 = 8 hours
@@ -53,7 +54,7 @@ VALIDATION_STEP = 500  # must be multiple of RECORDING_STEP
 VISUALIZE_PREDICTION_ON_TRAINING_SET = False
 VISUALIZE_NUM = -1  # -1 means visualize all
 
-RUN_ON_TEST_SET = False
+RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -396,13 +397,13 @@ def main(argv=None):  # pylint: disable=unused-argument
             return res_img
 
         # Read images from disk
-        img = mpimg.imread(input_path)
+        img = misc.imread(input_path)
         img_truth = None
         if truth_input_path != None:
-            img_truth = mpimg.imread(truth_input_path)
+            img_truth = misc.imread(truth_input_path)
 
         # Get prediction
-        stride = const.IMG_PATCH_SIZE
+        stride = 4  # TODO const.IMG_PATCH_SIZE
         prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
