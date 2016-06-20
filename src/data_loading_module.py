@@ -5,6 +5,7 @@ import numpy as np
 import patch_extraction_module as pem
 import constants as const
 
+
 def extract_data(filename, num_images,  num_of_transformations = 6, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE):
     imgs = []
     for i in range(1, num_images+1):
@@ -22,12 +23,19 @@ def extract_data(filename, num_images,  num_of_transformations = 6, patch_size =
     IMG_HEIGHT = imgs[0].shape[1]
     N_PATCHES_PER_IMAGE = (const.IMG_WIDTH / patch_size) * (const.IMG_HEIGHT / patch_size)
     print('Extracting patches...')
-    img_patches = [pem.input_img_crop(imgs[i], patch_size, const.IMG_BORDER_SIZE, patch_stride, num_of_transformations) for i in range(num_images)]
-    data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
+
+    data = []
+    for i in range(num_images):
+        this_img_patches = pem.input_img_crop(imgs[i], patch_size, const.IMG_BORDER_SIZE, patch_stride, num_of_transformations)
+        data += this_img_patches
+        print("\tcurrently have %d patches" % len(data))
     print(str(len(data)) + ' patches extracted.')
+
+    imgs = None  # We don't want the object in memory any more
 
     print("Casting to numpy array")
     tmp = np.asarray(data)
+    data = None  # We don't want the object in memory any more
     print("Cast successful")
     patches = pem.zero_center(tmp)
     print("Patches have been zero centered.")
@@ -37,12 +45,13 @@ def extract_data(filename, num_images,  num_of_transformations = 6, patch_size =
 def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = np.sum(v)
-    if df > foreground_threshold:
-        # Road
-        return [0, 1]
-    else:
-        # Non-road
-        return [1, 0]
+    return [1-df, df]
+    # if df > foreground_threshold:
+    #     # Road
+    #     return [0, 1]
+    # else:
+    #     # Non-road
+    #     return [1, 0]
 
 # Extract label images
 def extract_labels(filename, num_images, num_of_transformations = 6, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE):
