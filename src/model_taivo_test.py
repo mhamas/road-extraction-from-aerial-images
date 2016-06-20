@@ -1,8 +1,8 @@
 import os
 import sys
 import urllib
-from scipy import misc
-#import matplotlib.image as mpimg
+#from scipy import misc
+import matplotlib.image as mpimg
 
 import csv
 import time
@@ -397,10 +397,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             return res_img
 
         # Read images from disk
-        img = misc.imread(input_path)
+        img = mpimg.imread(input_path)
         img_truth = None
         if truth_input_path != None:
-            img_truth = misc.imread(truth_input_path)
+            img_truth = mpimg.imread(truth_input_path)
 
         # Get prediction
         stride = 4  # TODO const.IMG_PATCH_SIZE
