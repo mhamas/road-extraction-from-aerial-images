@@ -23,7 +23,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32 
 BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 
-RESTORE_MODEL = False
+RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
@@ -38,7 +38,7 @@ IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
-VALIDATE = False
+VALIDATE = True
 VALIDATION_STEP = 500 # must be multiple of RECORDING_STEP
 
 VISUALIZE_PREDICTION_ON_TRAINING_SET = False
@@ -106,7 +106,6 @@ def train_model():
     print("Shape of patches: " + str(train_data.shape))
     print("Shape of labels:  " + str(train_labels.shape))
 
-
     ##########################################
     ### SETUP OUT OF SAMPLE VALIDATION SET ###
     ##########################################
@@ -119,7 +118,10 @@ def train_model():
         
         validation_data = train_data[perm_indices[0:VALIDATION_SIZE]]
         validation_labels = train_labels[perm_indices[0:VALIDATION_SIZE]]
-
+        
+        if not os.path.isdir(const.OBJECTS_PATH):
+            os.makedirs(const.OBJECTS_PATH)
+            
         np.save(PATCHES_VALIDATION, validation_data)
         np.save(LABELS_VALIDATION, validation_labels)
         
@@ -360,4 +362,14 @@ def train_model():
                     saver.save(s, FLAGS.train_dir + "/postpro_model.ckpt")
 
         if VALIDATE:
-            validation_err = validate(validation_model, validation_labels)
+            validation_err = validate(validation_model, validation_labels)         
+            
+        def get_prediction(tf_session, img, stride):
+            data = pem.zero_center(np.asarray(pem.input_img_crop(img, const.IMG_PATCH_SIZE, const.IMG_BORDER_SIZE, stride, 0)))
+            data_node = tf.cast(tf.constant(data), tf.float32)
+            prediction = tf_session.run(tf.nn.softmax(model(data_node)))
+
+            return np.reshape(prediction[:][1], img.shape)
+
+    
+        # load image, use get_prediction(tf_session, img)
