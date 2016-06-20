@@ -32,7 +32,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32
 BALANCE_SIZE_OF_CLASSES = True  # recommended to leave True
 
-RESTORE_MODEL = False
+RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 2 * 3600  # NB: 28800 = 8 hours
@@ -43,7 +43,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
-IMG_PATCHES_RESTORE = False
+IMG_PATCHES_RESTORE = True
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
@@ -83,6 +83,7 @@ def initialization_check():
         sys.exit(1)
 
 
+@profile
 def main(argv=None):  # pylint: disable=unused-argument
 
     # Start profiling
@@ -403,7 +404,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
 
         # Get prediction
-        stride = 4  # TODO const.IMG_PATCH_SIZE
+        stride = const.IMG_PATCH_SIZE # TODO 4
         prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
@@ -732,14 +733,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Saving to csv file for submission
                     num_rows = prediction_as_img.shape[0]
                     num_cols = prediction_as_img.shape[1]
-                    rows_out = np.empty((0, 2))
+                    #rows_out = np.empty((0, 2))
                     for x in range(0, num_rows, const.IMG_PATCH_SIZE):
                         for y in range(0, num_cols, const.IMG_PATCH_SIZE):
                             id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
-                            next_row = np.array([[id, str(prediction_as_img[y][x])]])
-                            rows_out = np.concatenate((rows_out, next_row))
-                    writer.writerows(rows_out)
-            csvfile.close()
+                            #next_row = np.array([[id, str(prediction_as_img[y][x])]])
+                            writer.writerow([id, str(prediction_as_img[y][x])])
+                            #rows_out = np.concatenate((rows_out, next_row))
+                    #writer.writerows(rows_out)
 
     # End profiling and save stats
     pr.disable()
@@ -751,7 +752,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
 if __name__ == '__main__':
-
-    tf.app.run()
+    main()
+    #tf.app.run()
 
 
