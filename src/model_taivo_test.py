@@ -2,7 +2,6 @@ import os
 import sys
 import urllib
 import matplotlib.image as mpimg
-from PIL import Image
 
 import csv
 import time
@@ -354,6 +353,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         ### AUXILIARY FUNCTION 2 ###
         def make_img_overlay(img, predicted_img, true_img=None):
+            from PIL import Image  # TODO import here because not available on Euler
             ### AUXILIARY FUNCTION 2.1 ###
             def img_float_to_uint8(img):
                 rimg = img - np.min(img)
