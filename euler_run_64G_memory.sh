@@ -24,3 +24,5 @@ cd src
 bsub -n 8 -R "rusage[mem=8192]" -We 3:55 -oo "../logs/run_%J.out" \
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/ext/lib" $HOME/ext/lib/ld-2.23.so $HOME/.venv/bin/python3 model_taivo_test.py
 cd ..
+
+deactivate # leave venv
