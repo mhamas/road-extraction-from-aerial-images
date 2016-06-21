@@ -751,7 +751,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
 if __name__ == '__main__':
-    main()
-    #tf.app.run()
+    #main()
+    tf.app.run()
 
 
