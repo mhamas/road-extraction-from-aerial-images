@@ -83,7 +83,6 @@ def initialization_check():
         sys.exit(1)
 
 
-@profile
 def main(argv=None):  # pylint: disable=unused-argument
 
     # Start profiling
