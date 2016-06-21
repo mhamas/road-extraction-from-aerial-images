@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 import math
 import scipy
+import scipy.misc
 
 import patch_extraction_module as pem
 import data_loading_module as dlm
