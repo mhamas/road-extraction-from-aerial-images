@@ -45,13 +45,12 @@ def extract_data(filename, num_images,  num_of_transformations = 6, patch_size =
 def value_to_class(v):
     foreground_threshold = 0.25 # percentage of pixels > 1 required to assign a foreground label to a patch
     df = np.sum(v)
-    return [1-df, df]
-    # if df > foreground_threshold:
-    #     # Road
-    #     return [0, 1]
-    # else:
-    #     # Non-road
-    #     return [1, 0]
+    if df > foreground_threshold:
+        # Road
+        return [0, 1]
+    else:
+        # Non-road
+        return [1, 0]
 
 # Extract label images
 def extract_labels(filename, num_images, num_of_transformations = 6, patch_size = const.IMG_PATCH_SIZE, patch_stride = const.IMG_PATCH_STRIDE):
