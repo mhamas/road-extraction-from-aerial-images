@@ -32,7 +32,7 @@ RESTORE_MODEL = False
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 #MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
-MAX_TRAINING_TIME_IN_SEC = 300 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 900 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.01
@@ -40,7 +40,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
-IMG_PATCHES_RESTORE = True
+IMG_PATCHES_RESTORE = False
 TRAINING_SIZE = 100
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
@@ -95,7 +95,7 @@ def train_model():
     patch_size = 1
     border_size = const.POSTPRO_SVM_PATCH_SIZE // 2
     stride = 2
-    nTransforms = 3
+    nTransforms = 4
     
     patches = []
     labels = []
@@ -103,7 +103,7 @@ def train_model():
         patches.extend(pem.img_crop(labelsCNN[i], patch_size, border_size, stride, nTransforms))
         labels.extend(pem.img_crop(labelsTrue[i], 1, 0, stride, nTransforms))
 
-    train_data = np.expand_dims(np.asarray([np.squeeze(np.asarray(p)) for p in patches]), axis=3)
+    train_data = pem.zero_center(np.expand_dims(np.asarray([np.squeeze(np.asarray(p)) for p in patches]), axis=3))
     train_labels = np.expand_dims(np.squeeze(np.asarray(labels)), axis=1)
     train_labels = np.hstack((train_labels, 1 - train_labels))
     
@@ -114,6 +114,40 @@ def train_model():
     print("Shape of patches: " + str(train_data.shape))
     print("Shape of labels:  " + str(train_labels.shape))
 
+    ##############################
+    ### BALANCING TRAINING SET ###
+    ##############################
+    if BALANCE_SIZE_OF_CLASSES:
+        ### AUXILIARY FUNCTION ###
+        def num_of_datapoints_per_class():
+            c0 = 0
+            c1 = 0
+            for i in range(len(train_labels)):
+                if train_labels[i][0] == 1:
+                    c0 = c0 + 1
+                else:
+                    c1 = c1 + 1
+            print ("Number of data points per class: c0 = " + str(c0) + " c1 = " + str(c1))
+            return (c0, c1)
+        ### END OF AUXILIARY FUNCTION ###
+
+        # Computing per class number of data points
+        (c0, c1) = num_of_datapoints_per_class();
+
+        # Balancing
+        print ("Balancing training data.")
+        min_c = min(c0, c1)
+        idx0 = [i for i, j in enumerate(train_labels) if j[0] == 1]
+        idx1 = [i for i, j in enumerate(train_labels) if j[1] == 1]
+        new_indices = idx0[0:min_c] + idx1[0:min_c]
+        
+        train_data = train_data[new_indices,:,:,:]
+        train_labels = train_labels[new_indices]
+        train_size = train_labels.shape[0]
+
+        num_of_datapoints_per_class();
+
+            
     ##########################################
     ### SETUP OUT OF SAMPLE VALIDATION SET ###
     ##########################################
@@ -168,7 +202,7 @@ def train_model():
     num_of_CNN_params_to_learn += conv1_dim * conv1_dim * conv1_num_of_maps
 
     ### FULLY CONNECTED LAYER 1 ###
-    tmp_neuron_num = int(4 * 4 * conv1_num_of_maps);
+    tmp_neuron_num = int(5 * 5 * conv1_num_of_maps);
     with tf.name_scope('fc1') as scope:
         fc1_size = 32
         fc1_weights = tf.Variable(  
@@ -367,7 +401,7 @@ def train_model():
             
         def get_prediction(tf_session, img):
             data_orig = np.asarray(pem.img_crop(img, 1, const.POSTPRO_SVM_PATCH_SIZE // 2, 1, 0))
-            data = np.asarray([np.expand_dims(np.squeeze(p), axis=3) for p in data_orig])
+            data = pem.zero_center(np.asarray([np.expand_dims(np.squeeze(p), axis=3) for p in data_orig]))
             data_node = tf.cast(tf.constant(data), tf.float32)
             prediction = tf_session.run(tf.nn.softmax(model(data_node)))
             return np.reshape(prediction[:, 0], img.shape, order=1)
