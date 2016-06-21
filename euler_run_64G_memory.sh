@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # bsub primer (see more at http://clusterwiki.ethz.ch/brutus/Using_the_batch_system)
-# -n number of CPU cores
-# -R memory usage. "rusage[mem=2048]" takes 2GB memory PER PROCESSOR
+# -n number of CPUs
+# -R memory usage. "rusage[mem=2048]" takes 2GB memory PER CPU
 # -W walltime
 # -oo specifies output file
 
