@@ -9,8 +9,13 @@ import data_loading_module as dlm
 import constants as const
 
 from skimage.transform import resize
+import matplotlib.image as mpimg
+import scipy
 
 import tensorflow as tf
+
+import postprocessing as postpro
+
 
 ROOT_DIR = "../"
 PIXEL_DEPTH = 255
@@ -23,10 +28,11 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32 
 BALANCE_SIZE_OF_CLASSES = True # recommended to leave True
 
-RESTORE_MODEL = True
+RESTORE_MODEL = False
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
+#MAX_TRAINING_TIME_IN_SEC = 2 * 3600 # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 300 # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.01
@@ -47,9 +53,11 @@ VISUALIZE_NUM = -1 # -1 means visualize all
 RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
-tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
+#tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
+#
+#FLAGS = tf.app.flags.FLAGS
 
-FLAGS = tf.app.flags.FLAGS
+TRAIN_DIR = ROOT_DIR + "tmp/"
 
 # predictions - Nx2 array for image where width * height = N
 #             - each cell contains 2 probabilities for 2 classes
@@ -267,7 +275,7 @@ def train_model():
     ### Predictions for the minibatch, validation set and test set. ###
     train_prediction = tf.nn.softmax(logits)
 
-    # Add ops to save and restore all the variables.
+    # Add ops to save and restore all the variables.train_data_filename
     saver = tf.train.Saver()
 
     #######################
@@ -275,14 +283,12 @@ def train_model():
     #######################
     with tf.Session() as s:
         if RESTORE_MODEL:
-            saver.restore(s, FLAGS.train_dir + "postpro_model.ckpt")
+            saver.restore(s, TRAIN_DIR + "postpro_model.ckpt")
             print("### MODEL RESTORED ###")
         else:
             tf.initialize_all_variables().run()
 
             # Build the summary operation based on the TF collection of Summaries.
-            summary_op = tf.merge_all_summaries()
-            summary_writer = tf.train.SummaryWriter(FLAGS.train_dir, graph=s.graph)
             print ("### MODEL INITIALIZED ###")
             print ("### TRAINING STARTED ###")
 
@@ -334,11 +340,6 @@ def train_model():
                             validation_err = validate(validation_model, validation_labels)
                             s.run(error_validation_tensor.assign(validation_err))
 
-                        # Writing to disk
-                        summary_str = s.run(summary_op, feed_dict=feed_dict)
-                        summary_writer.add_summary(summary_str, batch_index)
-                        summary_writer.flush()
-
                         print ("\nEpoch: %d, Batch #: %d"  % (iepoch, step))
                         print ("Global step:     %d" % (batch_index * BATCH_SIZE))
                         print ("Time elapsed:    %.3fs" %(time.time() - start))
@@ -349,27 +350,63 @@ def train_model():
                         print ("Minibatch insample error: %.1f%%" % insample_error)
                         sys.stdout.flush()
 
-                        saver.save(s, FLAGS.train_dir + "/postpro_model.ckpt")
+                        saver.save(s, TRAIN_DIR + "/postpro_model.ckpt")
 
                     batch_index += 1
                     if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
                         run_training = False;
-                        saver.save(s, FLAGS.train_dir + "/postpro_model.ckpt")
+                        saver.save(s, TRAIN_DIR + "/postpro_model.ckpt")
                     
                 iepoch += 1
                 if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
                     run_training = False;
-                    saver.save(s, FLAGS.train_dir + "/postpro_model.ckpt")
+                    saver.save(s, TRAIN_DIR + "/postpro_model.ckpt")
 
         if VALIDATE:
             validation_err = validate(validation_model, validation_labels)         
             
-        def get_prediction(tf_session, img, stride):
-            data = pem.zero_center(np.asarray(pem.input_img_crop(img, const.IMG_PATCH_SIZE, const.IMG_BORDER_SIZE, stride, 0)))
+        def get_prediction(tf_session, img):
+            data_orig = np.asarray(pem.img_crop(img, 1, const.POSTPRO_SVM_PATCH_SIZE // 2, 1, 0))
+            data = np.asarray([np.expand_dims(np.squeeze(p), axis=3) for p in data_orig])
             data_node = tf.cast(tf.constant(data), tf.float32)
             prediction = tf_session.run(tf.nn.softmax(model(data_node)))
-
-            return np.reshape(prediction[:][1], img.shape)
+            return np.reshape(prediction[:, 0], img.shape, order=1)
 
     
         # load image, use get_prediction(tf_session, img)
+#        num_test_images = 50
+#        test_data_filename = "../results/CNN_Output/test/raw/"
+#        testLabels  = dlm.read_image_array(test_data_filename, num_test_images, "raw_test_%d_patches")    
+#        for i in range(0, len(testLabels)):
+#            testLabels[i] = resize(testLabels[i], (testLabels[i].shape[0] // const.IMG_PATCH_SIZE, testLabels[i].shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
+#            output = get_prediction(s, testLabels[i])
+            
+        postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
+        # test set
+        prob_fn = "../results/CNN_Output/test/raw/"  
+        inputFileName = "raw_test_%d_patches"
+        outputDir = postpro_fn + "/test/"
+        num_images = 50
+    
+        if not os.path.isdir(outputDir):
+            os.makedirs(outputDir)
+    
+        outputImages = []
+        imSizes = []
+        for i in range(1, num_images+1):
+        #    imageid = "raw_test_%d_patches" % i
+            imageid = inputFileName % i
+            image_filename = prob_fn + imageid + ".png"
+        
+            if os.path.isfile(image_filename):
+                img = mpimg.imread(image_filename) 
+                imSizes.append(img.shape)
+                output = get_prediction(s, resize(img, (img.shape[0] // const.IMG_PATCH_SIZE, img.shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True) )
+                output = np.round(output)
+                outputImages.append(output)
+                scipy.misc.imsave(outputDir + ("satImage_%d" % i) + ".png" , resize(outputImages[i - 1],  img.shape, order=0, preserve_range=True))
+            else:
+                print ('File ' + image_filename + ' does not exist')
+                
+        postpro.create_submission_file(outputImages)
+            
