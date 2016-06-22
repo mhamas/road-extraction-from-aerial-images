@@ -267,7 +267,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     num_of_CNN_params_to_learn += conv4_dim * conv4_dim * conv4_num_of_maps
 
     ### FULLY CONNECTED LAYER 1 ###
-    tmp_neuron_num = int((const.IMG_PATCH_SIZE / 8) * (const.IMG_PATCH_SIZE / 8) * conv4_num_of_maps);
+    tmp_neuron_num = int(const.IMG_CONTEXT_SIZE / 16 * const.IMG_CONTEXT_SIZE / 16 * conv4_num_of_maps)
     with tf.name_scope('fc1') as scope:
         fc1_size = 64
         fc1_weights = tf.Variable(
