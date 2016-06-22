@@ -132,8 +132,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         print(const.PATCHES_MEAN_PATH + ".npy" + " removed.")
         train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE, 1)
         train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE, 1)
-        np.save(patches_filename, train_data)
-        np.save(labels_filename, train_labels)
+
+        if IMG_PATCHES_SAVE:
+            np.save(patches_filename, train_data)
+            np.save(labels_filename, train_labels)
 
     print("Shape of patches: " + str(train_data.shape))
     print("Shape of labels:  " + str(train_labels.shape))
