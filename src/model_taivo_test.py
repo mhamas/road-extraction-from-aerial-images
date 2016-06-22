@@ -33,7 +33,7 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32
 BALANCE_SIZE_OF_CLASSES = True  # recommended to leave True
 
-RESTORE_MODEL = False
+RESTORE_MODEL = True
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
 MAX_TRAINING_TIME_IN_SEC = 6 * 3600  # NB: 28800 = 8 hours
@@ -52,7 +52,7 @@ VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = False
 VALIDATION_STEP = 500  # must be multiple of RECORDING_STEP
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = False
+VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1  # -1 means visualize all
 
 RUN_ON_TEST_SET = True
@@ -485,8 +485,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
 
         ##### DROPOUT #####
-        # if train:
-        #     hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        if train:
+            hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
 
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
