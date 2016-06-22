@@ -44,8 +44,9 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
+IMG_PATCHES_SAVE = False
 IMG_PATCHES_RESTORE = False
-TRAINING_SIZE = 100
+TRAINING_SIZE = 1
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = False
@@ -172,9 +173,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             train_labels = train_labels[new_indices]
             train_size = train_labels.shape[0]
 
-            num_of_datapoints_per_class();
-            np.save(patches_balanced_filename, train_data)
-            np.save(labels_balanced_filename, train_labels)
+            num_of_datapoints_per_class()
+            if IMG_PATCHES_SAVE:
+                np.save(patches_balanced_filename, train_data)
+                np.save(labels_balanced_filename, train_labels)
 
     ##########################################
     ### SETUP OUT OF SAMPLE VALIDATION SET ###
