@@ -93,7 +93,7 @@ def train_model():
     # extract patches and corresponding groundtruth center value
     t = time.time()
     patch_size = 1
-    border_size = const.POSTPRO_SVM_PATCH_SIZE // 2
+    border_size = const.POSTPRO_CNN_PATCH_SIZE // 2
     stride = 2
     nTransforms = 4
     
@@ -181,7 +181,7 @@ def train_model():
     ####################################
     ### CREATING VARIABLES FOR GRAPH ###
     ####################################
-    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.POSTPRO_SVM_PATCH_SIZE, const.POSTPRO_SVM_PATCH_SIZE, 1))
+    train_data_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, const.POSTPRO_CNN_PATCH_SIZE, const.POSTPRO_CNN_PATCH_SIZE, 1))
     train_labels_node = tf.placeholder(tf.float32, shape=(BATCH_SIZE, NUM_LABELS))
     
     ###############
@@ -193,18 +193,29 @@ def train_model():
     ### CONVOLUTIONAL LAYER 1 ###
     with tf.name_scope('conv1') as scope:
         conv1_dim = 5
-        conv1_num_of_maps = 32
+        conv1_num_of_maps = 16
         conv1_weights = tf.Variable(
             tf.truncated_normal([conv1_dim, conv1_dim, 1, conv1_num_of_maps],  
                                 stddev=0.1,
                                 seed=SEED), name='weights')
         conv1_biases = tf.Variable(tf.zeros([conv1_num_of_maps]), name='biases')
     num_of_CNN_params_to_learn += conv1_dim * conv1_dim * conv1_num_of_maps
+    
+    ### CONVOLUTIONAL LAYER 2 ###
+    with tf.name_scope('conv2') as scope:
+        conv2_dim = 3
+        conv2_num_of_maps = 32
+        conv2_weights = tf.Variable(
+            tf.truncated_normal([conv2_dim, conv2_dim, conv1_num_of_maps, conv2_num_of_maps],
+                                stddev=0.1,
+                                seed=SEED), name='weights')
+        conv2_biases = tf.Variable(tf.constant(0.1, shape=[conv2_num_of_maps]), name='biases')
+    num_of_CNN_params_to_learn += conv2_dim * conv2_dim * conv2_num_of_maps
 
     ### FULLY CONNECTED LAYER 1 ###
-    tmp_neuron_num = int(5 * 5 * conv1_num_of_maps);
+    tmp_neuron_num = int(3 * 3 * conv2_num_of_maps);
     with tf.name_scope('fc1') as scope:
-        fc1_size = 32
+        fc1_size = 64
         fc1_weights = tf.Variable(  
             tf.truncated_normal([tmp_neuron_num, fc1_size],
                                 stddev=0.1,
@@ -245,7 +256,13 @@ def train_model():
         relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
         norm1 = tf.nn.lrn(relu1)
         pool1 = tf.nn.max_pool(norm1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
-        conv_out = pool1
+        
+        # CONV. LAYER 2
+        conv2 = tf.nn.conv2d(pool1, conv2_weights, strides=[1, 1, 1, 1], padding='SAME')
+        relu2 = tf.nn.relu(tf.nn.bias_add(conv2, conv2_biases))
+        norm2 = tf.nn.lrn(relu2)
+        pool2 = tf.nn.max_pool(norm2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')        
+        conv_out = pool2
         
         # Reshape the feature map cuboid into a 2D matrix to feed it to the fully connected layers.
         pool_shape = conv_out.get_shape().as_list()
@@ -255,6 +272,10 @@ def train_model():
         
         # Fully connected layer. Note that the '+' operation automatically broadcasts the biases.
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)    
+        
+        ##### DROPOUT #####
+        if train:
+            hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
         
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
@@ -400,7 +421,7 @@ def train_model():
             validation_err = validate(validation_model, validation_labels)         
             
         def get_prediction(tf_session, img):
-            data_orig = np.asarray(pem.img_crop(img, 1, const.POSTPRO_SVM_PATCH_SIZE // 2, 1, 0))
+            data_orig = np.asarray(pem.img_crop(img, 1, const.POSTPRO_CNN_PATCH_SIZE // 2, 1, 0))
             data = pem.zero_center(np.asarray([np.expand_dims(np.squeeze(p), axis=3) for p in data_orig]))
             data_node = tf.cast(tf.constant(data), tf.float32)
             prediction = tf_session.run(tf.nn.softmax(model(data_node)))

@@ -14,4 +14,6 @@ RESULTS_PATH = "../results"
 # post processing
 DICT_PATCH_SIZE = (5, 5)
 LOW_RANK_TARGET = 3 # desired rank of output
-POSTPRO_SVM_PATCH_SIZE = 9 # use 7 to get best score with SVM
+
+POSTPRO_SVM_PATCH_SIZE = 7 # use 7 to get best score with SVM
+POSTPRO_CNN_PATCH_SIZE = 9 # use 7 to get best score with SVM
