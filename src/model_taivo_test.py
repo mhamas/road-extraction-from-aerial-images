@@ -46,7 +46,7 @@ LOSS_WINDOW_SIZE = 10
 
 IMG_PATCHES_SAVE = False
 IMG_PATCHES_RESTORE = False
-TRAINING_SIZE = 100
+TRAINING_SIZE = 130
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = False
