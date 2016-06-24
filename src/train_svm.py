@@ -24,7 +24,7 @@ def trainClassifier():
     #train_data_filename = "../data/training/images/"
     train_labels_filename = "../data/training/groundtruth/"
     
-    num_images = 10
+    num_images = 100
     
     # ground truth label images and CNN output
     labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE)
@@ -43,12 +43,12 @@ def trainClassifier():
     t = time.time()
     patch_size = 1
     border_size = const.POSTPRO_SVM_PATCH_SIZE // 2
-    stride = 2
-    nTransforms = 3
+#    stride = 2
+#    nTransforms = 3
     
 # OLD SETTINGS
-#    stride = 1
-#    nTransforms = 5
+    stride = 1
+    nTransforms = 5
     
     patches = []
     labels = []
@@ -65,16 +65,17 @@ def trainClassifier():
     print("Fitting SVM...")
     t = time.time()
     
-    svc_model = svm.SVC()
-    rbm = BernoulliRBM(random_state=0, verbose=True)
-
-    classifier = Pipeline(steps=[('rbm', rbm), ('svm', svc_model)])
+    classifier = svm.SVC()
     
-    rbm.learning_rate = 0.06
-    rbm.n_iter = 20
-    rbm.n_components = 50
-
+#    svc_model = svm.SVC()    
+#    rbm = BernoulliRBM(random_state=0, verbose=True)
+#    classifier = Pipeline(steps=[('rbm', rbm), ('svm', svc_model)])    
+#    rbm.learning_rate = 0.06
+#    rbm.n_iter = 20
+#    rbm.n_components = 50
+    
     classifier.fit(X, y)
+    
     elapsed = time.time() - t
     print("Training SVM took " + str(elapsed) + " s")
 
@@ -101,20 +102,4 @@ def getSVMClassifier():
         print("Loaded SVM")
 
     return clf
-#%% Apply predictor on example
-#img = labelsCNN[54]
-#
-#plt.figure()
-#plt.imshow(img)
-#plt.show()
-#
-#img_ptc = pem.img_crop(img, patch_size, border_size, 1, 0)
-#
-#output = clf.predict(np.asarray([np.ravel(np.squeeze(np.asarray(p))) for p in img_ptc]))
-#
-#outImg = np.reshape(output, img.shape, order=1)
-#plt.figure()
-#plt.imshow(outImg, cmap=plt.cm.gray, interpolation='nearest')
-#plt.show()
-
 

@@ -101,10 +101,11 @@ def apply_postprocessing(img, dictionary, svm):
 #    finalOutput = set_to_zero_if_no_neighbours(img2)
     
     result = svm_denoise.denoiseImg(img, svm)
+    result = svm_denoise.denoiseImg(result, svm)
     finalOutput = np.zeros(img.shape)
     finalOutput[result >= 0.5] = 1         
     
-    
+# NOTE: dictionary currently empty object
 #    result = dict_denoise.denoiseImg(img, dictionary)
 #    finalOutput = np.zeros(img.shape)
 #    finalOutput[result >= 0.5] = 1            
@@ -116,6 +117,7 @@ def apply_postprocessing(img, dictionary, svm):
 #    plt.figure()
 #    plt.imshow(finalOutput, cmap=plt.cm.gray, interpolation='nearest')
 #    plt.show()      
+            
     return finalOutput
     
 def create_submission_file(images):
@@ -160,9 +162,11 @@ def generate_output():
     if not os.path.isdir(outputDir):
         os.makedirs(outputDir)
 
-    D = dict_train.get_dictionary()
+#    D = dict_train.get_dictionary()
+    D = []
+    print("Trained dictionary")
     svm = svm_train.getSVMClassifier()   
-
+    print("Trained SVM classifier")
     verbose = True
     outputImages = []
     imSizes = []
