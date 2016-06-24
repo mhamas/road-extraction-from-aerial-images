@@ -94,8 +94,8 @@ def train_model():
     t = time.time()
     patch_size = 1
     border_size = const.POSTPRO_CNN_PATCH_SIZE // 2
-    stride = 2
-    nTransforms = 4
+    stride = 1
+    nTransforms = 5
     
     patches = []
     labels = []
