@@ -485,8 +485,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
 
         ##### DROPOUT #####
-        if train:
-            hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        #if train:
+        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
 
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
