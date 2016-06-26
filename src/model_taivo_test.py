@@ -46,7 +46,7 @@ LOSS_WINDOW_SIZE = 10
 
 IMG_PATCHES_SAVE = False
 IMG_PATCHES_RESTORE = False
-TRAINING_SIZE = 130
+TRAINING_SIZE = 1
 
 VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = False
@@ -105,9 +105,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     np.random.seed(NP_SEED)
     num_epochs = NUM_EPOCHS
 
-    train_data_filename = ROOT_DIR + "data/training/images/"
-    train_labels_filename = ROOT_DIR + "data/training/groundtruth/"
-    test_data_filename = ROOT_DIR + "data/test_set/"
+    train_data_filename = ROOT_DIR + "data/training/images/downsampled/"
+    train_labels_filename = ROOT_DIR + "data/training/groundtruth/downsampled/"
+    test_data_filename = ROOT_DIR + "data/test_set/downsampled/"
 
     #######################
     ### LOADING PATCHES ###
