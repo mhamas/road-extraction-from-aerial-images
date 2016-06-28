@@ -27,11 +27,11 @@ def trainClassifier():
     num_images = 100
     
     # ground truth label images and CNN output
-    labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE)
+    labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.POSTPRO_PATCH_SIZE, const.POSTPRO_PATCH_SIZE)
     labelsCNN  = dlm.read_image_array(train_data_filename, num_images, "raw_satImage_%.3d_patches")
     
     for i in range(0, len(labelsCNN)):
-        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.IMG_PATCH_SIZE, labelsCNN[i].shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
+        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.POSTPRO_PATCH_SIZE, labelsCNN[i].shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
         
     elapsed = time.time() - t
     print("Loading training data took: " + str(elapsed) + " s")
