@@ -10,9 +10,10 @@ are not found cached on the disk, this script automatically trains them
 
 """
 import glob
-import postprocessing as pp
+
 import model_taivo_test as cnn
-import upsampling as upsampling
+import postprocessing as pp
+from cilutil import upsampling
 
 # Train CNN
 cnn.main()
