@@ -435,7 +435,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         oimg2.save(output_path_overlay + "_patches.png")
 
         # Raw image
-        scipy.misc.imsave(output_path_raw + "_pixels.png", prediction_as_per_pixel_img)
+        scipy.misc.imsave(output_path_raw.replace("/raw/", "/high_res_raw/") + "_pixels.png", prediction_as_per_pixel_img)
         scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
 
         return (prediction, prediction_as_binary_img)
@@ -690,11 +690,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Save the variables to disk.
                     save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
 
-        prefix_results = ROOT_DIR + "results/"
+        prefix_results = ROOT_DIR + "results/CNN_Output/"
 
         if VISUALIZE_PREDICTION_ON_TRAINING_SET:
             print("--- Visualizing prediction on training set ---")
-            prediction_training_dir = prefix_results + "predictions_training/"
+            prediction_training_dir = prefix_results + "training/"
             if not os.path.isdir(prediction_training_dir):
                 os.mkdir(prediction_training_dir)
             limit = TRAINING_SIZE + 1 if VISUALIZE_NUM == -1 else VISUALIZE_NUM
@@ -704,7 +704,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 input_path = train_data_filename + img_name + ".png"
                 truth_path = train_labels_filename + img_name + ".png"
                 output_path_overlay = prediction_training_dir + "overlay_" + img_name
-                output_path_raw = prediction_training_dir + "raw_" + img_name
+                output_path_raw = prediction_training_dir + "raw/" + "raw_" + img_name
 
                 get_prediction_with_overlay(s, input_path, output_path_overlay, output_path_raw, truth_path)
 
@@ -713,7 +713,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         if RUN_ON_TEST_SET:
             print("--- Running prediction on test set ---")
-            prediction_test_dir = prefix_results + "predictions_test/"
+            prediction_test_dir = prefix_results + "test/"
             if not os.path.isdir(prediction_test_dir):
                 os.mkdir(prediction_test_dir)
 
@@ -727,7 +727,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     img_name = "test_" + str(i)
                     input_path = test_data_filename + img_name + ".png"
                     output_path_overlay = prediction_test_dir + "overlay_" + img_name
-                    output_path_raw = prediction_test_dir + "raw_" + img_name
+                    output_path_raw = prediction_test_dir + "raw/" + "raw_" + img_name
 
                     (_, prediction_as_img) = get_prediction_with_overlay(s, input_path, output_path_overlay,
                                                                          output_path_raw)
