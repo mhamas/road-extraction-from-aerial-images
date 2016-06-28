@@ -35,6 +35,13 @@ TODO - Matej
 \subsection{Final CNN Architecture}
 \label{subsec:CNN}
 TODO - \textbf{Matej + Taivo}
+
+\subsection{Postprocessing}
+The convolutional neural network outputs independent predictions for all $ 16 \times 16 $ patches of the processed image. The spatial arrangement of predictions however contains valuable information, which can be used to further improve the prediction accuracy. For example, it is highly unlikely to observe a road which only covers one patch. If the CNN predicts an isolated patch as belonging to the road label, we can discard this prediction with high certainty. The opposite also holds: a patch labeled as non-road surrounded by patches labeled as road is most likely part of the road as well. Oftentimes false negatives are caused by shadows or overlapping structures such as railway bridges.
+
+\par 
+In our algorithm, we filter the CNN output by predicting the label of a patch from the labels of the surrounding patches. Given a window of $ 7 \times 7 $ patches predicted by the CNN, we predict the label of the central patch using a binary support vector machine (SVM) classifier. We directly use the probabilities output by the CNN as features for the SVM classifier. We also tried to automatically extract features using Restricted Boltzmann Machines \cite{smolensky.1986}, but could not achieve an increase in prediction accuracy. The SVM uses a radial basis function kernel and a soft-margin penalization weight of $ 1 $. We did not perform a systematic search for optimal SVM hyper-parameters, as these parameters seem to work reasonable well.
+
 \section{Results}
 \label{sec:results}
 TODO - \textbf{Delio}
