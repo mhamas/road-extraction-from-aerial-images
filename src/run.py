@@ -10,12 +10,10 @@ are not found cached on the disk, this script automatically trains them
 
 """
 import postprocessing as pp
+import model_taivo_test as cnn
 
 # Train CNN
-#TODO: Train CNN if needed, otherwise load model from disk
-
-# Compute CNN predictions
-#TODO: Generate predictions using CNN (save to image files)
+cnn.main()
 
 # Apply post processing to CNN output
 pp.generate_output()
