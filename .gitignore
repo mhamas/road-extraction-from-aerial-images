@@ -71,3 +71,5 @@ target/
 
 # PyCharm
 .idea
+
+src/profile.txt

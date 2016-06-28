@@ -9,6 +9,7 @@ are not found cached on the disk, this script automatically trains them
 
 
 """
+import postprocessing as pp
 
 # Train CNN
 #TODO: Train CNN if needed, otherwise load model from disk
@@ -17,7 +18,6 @@ are not found cached on the disk, this script automatically trains them
 #TODO: Generate predictions using CNN (save to image files)
 
 # Apply post processing to CNN output
-import probabilities_to_submission # generates the final CSV given the CNN probabilities (should be merged into postproc. module)
-
+pp.generate_output()
 
 
