@@ -137,7 +137,7 @@ We also experimented using an additional CNN for post-processing, as suggested b
 
 \section{Results}
 \label{sec:results}
-The neural network was implemented using TensorFlow \cite{tensorflow.2015} and the post processing using scikit-learn \cite{sklearn.2011}. Our CNN model trains for around 20 hours on a cluster node with  \todo{HARDWARE} and the post processing SVM trains for around 1.5 hours. All code runs exclusively on the CPU, since the used cluster does not provide any GPU nodes. Given the trained models, individual satellite images are processed in a matter of seconds.
+The neural network was implemented using TensorFlow \cite{tensorflow.2015} and the post processing using scikit-learn \cite{sklearn.2011}. Our CNN model trains for around 20 hours on a cluster node with 16 cores (Intel Xeon E5-2697 v2 or Xeon E5-2680 v3 depending on availability on the Euler cluster) and 128GB of memory and the post processing SVM trains for around 1.5 hours \todo{Delio: on your laptop, right? should we add specs?}. All code runs exclusively on the CPU, since the used cluster does not provide any GPU nodes. Given the trained models, individual satellite images are processed in a matter of seconds.
 
 \par 
 We compare our method to the two different baseline implementations described previously. The first is the CNN described in Section \ref{subsec:baselineCNN}. The second one is the same CNN combined with dictionary based denoising. We measure model accuracy as the reported score in the public Kaggle leader board. Ideally, one would compute an average cross validation error, to also have an estimate of the variance of the measured accuracy. However, since CNNs are very expensive to train we decided to report the Kaggle score only.
