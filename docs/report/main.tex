@@ -35,7 +35,17 @@ The main goal of this paper is to present a novel technique for detecting roads 
 
 Given an RGB aerial or satellite image of a moderate resolution (in order of hundreds), we seek to classify each 16x16 patch as \textit{road} or \textit{non-road}. Hence, this is an instance of a binary classification problem.
 
-\begin{figure}[h]
+As this is quite canonical problem in computer vision, and thanks to its many applications, there is rich previous work in this area \cite{Huang.2002} \cite{MnihThesis.2013} \cite{Long.2014} \cite{Montoya.2015} \cite{Saito.2015}. Most of the past work concentrated on per pixel prediction from aerial images. Some papers also look at multi-class semantic classification by introducing specific \textit{building} class \cite{Saito.2015}. 
+
+Previous approaches include SVMs on manually extracted features \cite{Huang.2002}, convolutional neural networks (CNNs) \cite{Long.2014} \cite{Saito.2015}, conditional random fields \cite{Montoya.2015} and other probabilistic approaches.
+
+Unlike the most of past work, we concentrate on per-patch and not on per-pixel prediction. We have developed a novel solution by combining deep CNN with various post-processing techniques such as dictionary filtering or SVM classification.
+
+Simple 2-layer CNN provides a good starting point for patch classification.  However, the results are noisy. Hence, we modify the CNN architecture, make it deeper and dependant on larger context. Afterwards, we apply various denoising techniques to improve the final prediction. 
+
+We evaluate our algorithm to two baselines, namely plain vanilla 2 layer CNN and the same CNN with a dictionary filtering applied on top of it.
+
+\begin{figure}[]
 	\centering
 	\begin{subfigure}{.2\textwidth}
 		\includegraphics[width=1\textwidth]{figs/img1.png}
@@ -46,29 +56,9 @@ Given an RGB aerial or satellite image of a moderate resolution (in order of hun
 	\caption{Aerial image of an urban scene and the ground truth showing the road.}
 \end{figure}
 
-As this is quite canonical problem in computer vision, and thanks to its many applications, there is rich previous work in this area \cite{Huang.2002} \cite{MnihThesis.2013} \cite{Long.2014} \cite{Montoya.2015} \cite{Saito.2015}. Most of the past work concentrated on per pixel prediction from aerial images. Some papers also look at multi-class semantic classification by introducing specific \textit{building} class \cite{Saito.2015}. 
-
-Previous approaches include SVMs on manually extracted features \cite{Huang.2002}, convolutional neural networks (CNNs) \cite{Long.2014} \cite{Saito.2015}, conditional random fields \cite{Montoya.2015} and other probabilistic approaches.
-
-Unlike the most of past work, we concentrate on per-patch and not on per-pixel prediction. We have developed a novel solution by combining deep CNN with various post-processing techniques such as dictionary filtering or SVM classification.
-
-Simple 2-layer CNN provides a good starting point for patch classification.  However, the results are noisy. Hence, we modify the CNN architecture, make it deeper and dependant on larger context. Afterwards, we apply various denoising techniques to improve the final prediction. 
-
-We evaluate our algorithm to two baselines
-\begin{enumerate}
-	\item Simple 2 layer CNN.
-	\item Simple 2 layer CNN with dictionary filtering applied on top of it.
-\end{enumerate}
-
 \section{Models and Methods}
 \label{sec:MM}
-In this section we will describe
-\begin{enumerate}
-	\item data augmentation techniques.
-	\item baseline CNN architecture.
-	\item final CNN architecture.
-	\item post-processing techniques applied on the top of the CNN output.
-\end{enumerate}
+In this section we will describe data augmentation techniques, baseline and final CNN architectures and post-processing techniques applied on the top of the CNN output.
 
 \subsection{Data Augmentation}
 \label{subsec:preprocessing}
@@ -82,14 +72,14 @@ Finally, we balance the training dataset to include the same number of [0, 1] an
 
 \subsection{Notation - CNN Architecture}
 Here, we provide a short overview of possible CNN layers that are used in the following sections.
-\begin{enumerate}
+\begin{itemize}
 	\item \conv{N}{I}{O} \\
 	Convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
 	\item \relu ~- ReLU layer (rectified linear unit)
 	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N and stride S.
 	\item \lrn - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
 	\item \fc{I}{O} - Fully connected layer from I input channels to O output channels.
-\end{enumerate}
+\end{itemize}
 
 \subsection{Baseline CNN Architecture}
 \label{subsec:baselineCNN}
