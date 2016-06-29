@@ -18,5 +18,5 @@
 #~/Dropbox-Uploader/dropbox_uploader.sh upload ~/eth-cil-project/results/CNN_Output/training/high_res_raw/*.png /CNN_Output/training/high_res_raw
 
 
-~/Dropbox-Uploader/dropbox_uploader.sh copy ~/eth-cil-project/results/CNN_Output /
-~/Dropbox-Uploader/dropbox_uploader.sh copy ~/eth-cil-project/results/CNN_Output_Baseline /
+~/Dropbox-Uploader/dropbox_uploader.sh upload ~/eth-cil-project/results/CNN_Output /
+~/Dropbox-Uploader/dropbox_uploader.sh upload ~/eth-cil-project/results/CNN_Output_Baseline /
