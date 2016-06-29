@@ -20,14 +20,14 @@ import tensorflow as tf
 NUM_CHANNELS = 3  # RGB images
 PIXEL_DEPTH = 255
 NUM_LABELS = 2
-TRAINING_SIZE = 1 # 20
+TRAINING_SIZE = 100
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16  # 64
 NUM_EPOCHS = 5
 RESTORE_MODEL = False  # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 
-TEST_SIZE = 1 # 50
+TEST_SIZE = 50
 
 # Set image patch size in pixels
 # IMG_PATCH_SIZE should be a multiple of 4
@@ -518,9 +518,9 @@ def main(argv=None):  # pylint: disable=unused-argument
             os.mkdir(prediction_training_dir)
         for i in range(1, TRAINING_SIZE + 1):
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "prediction_" + str(i) + ".png")
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+            Image.fromarray(pimg).save(prediction_training_dir + "raw_satImage_" + str(i) + "_patches.png")
+            #oimg = get_prediction_with_overlay(train_data_filename, i)
+            #oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         # TEST SET PREDICTIONS
         print("Running prediction on test set")
@@ -547,7 +547,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 # Visualization
                 pimg = get_prediction_test(i, test_input_dir)
                 pimg = Image.fromarray(pimg).convert("RGB")
-                pimg.save(test_prediction_dir + "test" + str(i) + ".png")
+                pimg.save(test_prediction_dir + "raw_test_" + str(i) + "_patches.png")
 
                 # Construction of the submission file
                 prediction = get_prediction_test(i, test_input_dir)
