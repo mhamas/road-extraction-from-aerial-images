@@ -10,9 +10,9 @@
 
 \newcommand{\todo}[1]{{\color{red}{\textbf{TODO: #1}}}}
 \newcommand{\conv}[3]{$ \cal{C} $(#1$ \times  $#1, #2, #3)}
-\newcommand{\relu}{$ \cal{R} $}
+\newcommand{\relu}{$ \cal{R}~$}
 \newcommand{\maxpool}[2]{$ \cal{M} $(#1$ \times $#1, #2)}
-\newcommand{\lrn}{$ \cal{LRN} $}
+\newcommand{\lrn}{$ \cal{LRN}~$}
 \newcommand{\fc}[2]{$ \cal{FC} $(#1, #2)}
 
 \begin{document}
@@ -75,7 +75,7 @@ Here, we provide a short overview of possible CNN layers that are used in the fo
 \begin{itemize}
 	\item \conv{N}{I}{O} \\
 	Convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
-	\item \relu ~- ReLU layer (rectified linear unit)
+	\item \relu - ReLU layer (rectified linear unit)
 	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N and stride S.
 	\item \lrn - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
 	\item \fc{I}{O} - Fully connected layer from I input channels to O output channels.
@@ -83,8 +83,9 @@ Here, we provide a short overview of possible CNN layers that are used in the fo
 
 \subsection{Baseline CNN Architecture}
 \label{subsec:baselineCNN}
-%The baseline CNN operates on patches of size $16 \times 16$. It has two layers with the following architecture: \conv{5}{3}{X}
+The baseline CNN operates on patches of size $16 \times 16$. It has two convolutional and two fully connected layers with the following architecture: \\ \conv{5}{3}{32} -- \relu -- \maxpool{2}{2} -- \conv{5}{32}{64} -- \relu -- \maxpool{2}{2} -- \fc{1024}{512} -- \relu -- \fc{512}{2}.
 
+We apply \textit{softmax} to two outputs to get probabilities for both classes. All the weights are initialized randomly with standard deviation 0.1. The weights in $ \cal{FC} $ layers are L2 regularized with a factor $ 5 \times 10^{-4} $. We use a plain vanilla SGD optimizer with an exponentially decaying learning rate, starting at 0.01 with a decay rate 0.95. Batch size is 16. 
 
 \subsection{Final CNN Architecture}
 \label{subsec:CNN}
