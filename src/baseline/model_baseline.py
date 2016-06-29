@@ -506,10 +506,11 @@ def main(argv=None):  # pylint: disable=unused-argument
 
                         # print_predictions(predictions, batch_labels)
 
-                        print('Epoch %.2f' % (float(step) * BATCH_SIZE / train_size))
+                        print('Epoch %d / %d' % (iepoch, num_epochs))
                         print('Minibatch loss: %.3f, learning rate: %.6f' % (l, lr))
                         print('Minibatch error: %.1f%%' % error_rate(predictions,
                                                                      batch_labels))
+                        print("Time elapsed: %.3f" % (time.time() - start))
 
                         sys.stdout.flush()
                     else:
@@ -522,11 +523,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                 save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
                 print("Model saved in file: %s" % save_path)
 
-            iepoch += 1
-            if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
-                run_training = False
-            if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
-                run_training = False
+                iepoch += 1
+                if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
+                    run_training = False
+                if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
+                    run_training = False
 
         # TRAINING SET PREDICTIONS
         print("Running prediction on training set")
@@ -536,8 +537,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         for i in range(1, TRAINING_SIZE + 1):
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
             Image.fromarray(pimg).save(prediction_training_dir + "raw/raw_satImage_%.3d_patches.png" % i)
-            oimg = get_prediction_with_overlay(train_data_filename, i)
-            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+            #oimg = get_prediction_with_overlay(train_data_filename, i)
+            #oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         # TEST SET PREDICTIONS
         print("Running prediction on test set")
@@ -565,8 +566,8 @@ def main(argv=None):  # pylint: disable=unused-argument
                 pimg = get_prediction_test(i, test_input_dir)
                 pimg = Image.fromarray(pimg).convert("RGB")
                 pimg.save(test_prediction_dir + "raw/raw_test_" + str(i) + "_patches.png")
-                oimg = get_prediction_with_overlay(test_input_dir, i)
-                oimg.save(test_prediction_dir + "overlay_test_" + str(i) + "_patches.png")
+                #oimg = get_prediction_with_overlay(test_input_dir, i)
+                #oimg.save(test_prediction_dir + "overlay_test_" + str(i) + "_patches.png")
 
                 # Construction of the submission file
                 prediction = get_prediction_test(i, test_input_dir)
