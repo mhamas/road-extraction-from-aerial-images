@@ -7,6 +7,7 @@
 \usepackage{color}
 \usepackage{subcaption}
 \usepackage{hyperref}
+\usepackage{gensymb}
 
 \newcommand{\todo}[1]{{\color{red}{\textbf{TODO: #1}}}}
 \newcommand{\conv}[3]{$ \cal{C} $(#1$ \times  $#1, #2, #3)}
@@ -25,7 +26,7 @@
 \maketitle
 
 \begin{abstract}
-  TODO - last
+In this paper, we present a novel method to automatically segment aerial images in road and non-road patches. Our technique classifies small image patches using a deep convolutional neural network. On top of the neural network, we apply a post-processing filter based on a support vector machine classifier. The combination of convolutional neural network and post-processing yields a prediction accuracy over 90\% on a representative benchmark data set.
 \end{abstract}
 
 \section{Introduction}
@@ -136,24 +137,33 @@ We also experimented using an additional CNN for post-processing, as suggested b
 
 \section{Results}
 \label{sec:results}
-The neural network was implemented using Tensorflow \cite{tensorflow.2015} and the post processing using scikit learn \cite{sklearn.2011}. Our CNN model trains for around 20 hours on a cluster node with  \todo{HARDWARE} (on the CPU) and the post processing SVM trains for around 1.5 hours. Individual satellite images are processed in a matter of seconds.
+The neural network was implemented using TensorFlow \cite{tensorflow.2015} and the post processing using scikit-learn \cite{sklearn.2011}. Our CNN model trains for around 20 hours on a cluster node with  \todo{HARDWARE} and the post processing SVM trains for around 1.5 hours. All code runs exclusively on the CPU, since the used cluster does not provide any GPU nodes. Given the trained models, individual satellite images are processed in a matter of seconds.
 
 \par 
-We compare our method to two different baseline implementations. The first is the CNN described in \todo{REFER TO SECTION}. In the following we refer to this implementation as \emph{CNN1}. The second one is the same CNN combined with dictionary based denoising, called \emph{CNN1Dict} in the following. We measure model accuracy as the reported score in the public Kaggle leader board. The model CNN1 achieves an accuracy of only \todo{percent}. Post processing the output from this networks improves the accuracy to \todo{percent} percent. 
+We compare our method to the two different baseline implementations described previously. The first is the CNN described in Section \ref{subsec:baselineCNN}. The second one is the same CNN combined with dictionary based denoising. We measure model accuracy as the reported score in the public Kaggle leader board. Ideally, one would compute an average cross validation error, to also have an estimate of the variance of the measured accuracy. However, since CNNs are very expensive to train we decided to report the Kaggle score only.
 
 \par
-Our improved CNN on its own achieves an accuracy of  \todo{percent}. Applying our SVM based post processing procedure on top of these outputs, we get an accuracy of around  \todo{percent}.
+The baseline CNN achieves an accuracy of only \todo{percent}. Post-processing the output from this network using learned dictionaries improves the accuracy to \todo{percent} percent. 
+
+\par
+Our improved CNN on its own achieves an accuracy of  \todo{percent}. Applying our SVM based post-processing procedure on top of these outputs, we get an accuracy of around  \todo{percent}.
 
 \section{Discussion}
 \label{sec:discussion}
-TODO
+The baseline CNN clearly suffers from the fact that its context size is too small. Given a $ 16 \times 16 $ image patch at the resolutions we worked with, it is oftentimes impossible to correctly decide whether this patch belongs to a road or not. Even as humans we have a hard time to take this decision. A typical example where a network with such a small context size fails are trees. In our training data, there are many cases where trees cover a road and are thus labelled as road. However, trees which stand on an open field are not part of a road. Also flat roofs can sometimes resemble roads. \todo{SHOW IMAGES WHICH ARE HARD TO CLASSIFY. SHOW FAILURES}
+
+\par 
+Adding dictionary based denoising on top of this baseline CNN improves the predictions. The dictionary based method manages well with isolated outliers. However, the prediction quality is inherently limited by the output of the underlying CNN. In contrast to image denoising, the noise produced by the CNN does not have zero-mean. Oftentimes the CNN will mispredict a whole group of patches. The dictionary based denoising then fails to infer the correct labels. 
+
+\par 
+The accuracy gain we achieve using our improved CNN is mostly due to the increased patch size. The larger context reveals much more information about the currently processed image patch. Despite the improved architecture, there are still a lot of mispredictions. 
+
+\par
+Our post-processing algorithm manages to further reduce error. In \todo{BEFORE AND AFTER FIGURE} we can see, that almost all noise has been removed. There are still some areas where the post-processing is not very successful. Sometimes, the output predicted by the CNN contains roads which do not well connect to each other. The post-processor often does not succeed in connecting these road segments. Also it seems to have a strong bias for orthogonal roads, since the test set is dominated by these road directions. We experimented with rotating the training images by $ 45\degree $, but did not succeed in improving the prediction accuracy. Our current algorithm often predicts diagonal roads to thin or even removes them partially. This is the most prominent limitation of our current approach. 
 
 \section{Summary}
 \label{sec:summary}
 TODO - last
-
-\section*{Acknowledgements}
-TODO
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
