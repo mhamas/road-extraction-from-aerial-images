@@ -47,7 +47,7 @@ Previous approaches include SVMs on manually extracted features \cite{Huang.2002
 
 Unlike the most of past work, we concentrate on per-patch and not on per-pixel prediction. We have developed a novel solution by combining deep CNN with various post-processing techniques such as dictionary filtering or SVM classification.
 
-Simple CNN provides a good starting point for patch classification. However, the results are noisy. Hence we apply various denoising techniques to improve the final prediction. 
+Simple 2-layer CNN provides a good starting point for patch classification.  However, the results are noisy. Hence, we modify the CNN architecture, make it deeper and dependant on larger context. Afterwards, we apply various denoising techniques to improve the final prediction. 
 
 We evaluate our algorithm to two baselines
 \begin{enumerate}
@@ -58,7 +58,23 @@ We evaluate our algorithm to two baselines
 
 \section{Models and Methods}
 \label{sec:MM}
-TODO - \textbf{Matej} - couple of words that we've been using CNN + postprocessing applied on top of it
+In this section we will describe
+\begin{enumerate}
+	\item data augmentation techniques.
+	\item baseline CNN architecture.
+	\item final CNN architecture.
+	\item post-processing techniques applied on the top of the CNN output.
+\end{enumerate}
+
+\subsection{Data Augmentation}
+\label{subsec:preprocessing}
+The lack of training data is a universal problem in machine learning. To maximize both quantity and quality of our training data, we have implemented a sliding window approach which extract patches of a particular size from input images. To enlarge the dataset, we generate more training patches by flips and rotations.
+
+Afterwards, we zero-mean the training dataset by subtracting the mean image from all patches. We do not divide by standard deviation as the images are naturally well distributed.
+
+We then generate the corresponding ground truth labels from the input images by the same sliding window procedure, followed by the thresholding with a threshold 0.25. The labels are stored in a 1-hot format, i.e. as tuples [0, 1] or [1, 0].
+
+Finally, we balance the training dataset to include the same number of [0, 1] and [1, 0] examples. This is done to prevent a potential bias learnt by the CNN.
 
 \subsection{Baseline CNN}
 \label{subsec:baselineCNN}
