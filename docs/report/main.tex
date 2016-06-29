@@ -31,19 +31,19 @@
 \section{Introduction}
 \label{sec:intro}
 
-The main goal of this paper is to present a novel technique for detecting roads on aerial images. The solution to this problem has potentially many application ranging from automation of map making to urban planning and environmental monitoring.
+In this paper, we present a novel technique for detecting roads on aerial images. The solution to this problem has potentially many application ranging from automation of map making to urban planning and environmental monitoring.
 
-Given an RGB aerial or satellite image of a moderate resolution (in order of hundreds), we seek to classify each 16x16 patch as \textit{road} or \textit{non-road}. Hence, this is an instance of a binary classification problem.
+Given an RGB aerial or satellite image of a moderate resolution, we seek to classify each 16x16 patch as \textit{road} or \textit{non-road}. Hence, this is an instance of a binary classification problem.
 
-As this is quite canonical problem in computer vision, and thanks to its many applications, there is rich previous work in this area \cite{Huang.2002} \cite{MnihThesis.2013} \cite{Long.2014} \cite{Montoya.2015} \cite{Saito.2015}. Most of the past work concentrated on per pixel prediction from aerial images. Some papers also look at multi-class semantic classification by introducing specific \textit{building} class \cite{Saito.2015}. 
+As this is quite long-standing problem in computer vision, and thanks to its many applications, there is rich previous work in this area \cite{Huang.2002} \cite{MnihThesis.2013} \cite{Long.2014} \cite{Montoya.2015} \cite{Saito.2015}. Most of the past work concentrated on per-pixel prediction from aerial images. Some papers also look at multi-class semantic classification by introducing specific \textit{building} class \cite{Saito.2015}. 
 
-Previous approaches include SVMs on manually extracted features \cite{Huang.2002}, convolutional neural networks (CNNs) \cite{Long.2014} \cite{Saito.2015}, conditional random fields \cite{Montoya.2015} and other probabilistic approaches.
+Previous approaches include support vector machines (SVMs) on manually extracted features \cite{Huang.2002}, convolutional neural networks (CNNs) \cite{Long.2014} \cite{Saito.2015}, conditional random fields \cite{Montoya.2015} and other probabilistic approaches.
 
-Unlike the most of past work, we concentrate on per-patch and not on per-pixel prediction. We have developed a novel solution by combining deep CNN with various post-processing techniques such as dictionary filtering or SVM classification.
+Unlike most of the previous work, we concentrate on per-patch and not on per-pixel prediction. We have developed a novel solution by combining a deep CNN with an SVM based post-processing.
 
-Simple 2-layer CNN provides a good starting point for patch classification.  However, the results are noisy. Hence, we modify the CNN architecture, make it deeper and dependant on larger context. Afterwards, we apply various denoising techniques to improve the final prediction. 
+We compare our approach to two different baseline algorithms. One of them is a plain vanilla 2-layer CNN with SGD optimizer. The second is the same CNN followed by a denoising step by means of dictionary filtering.
 
-We evaluate our algorithm to two baselines, namely plain vanilla 2 layer CNN and the same CNN with a dictionary filtering applied on top of it.
+In conclusion, our main contributions are patch-based, \mbox{4-layer} CNN architecture for road segmentation followed by the SVM based post-processing scheme. 
 
 \begin{figure}[]
 	\centering
@@ -62,7 +62,7 @@ In this section we will describe data augmentation techniques, baseline and fina
 
 \subsection{Data Augmentation}
 \label{subsec:preprocessing}
-The lack of training data is a universal problem in machine learning. To maximize both quantity and quality of our training data, we have implemented a sliding window approach which extract patches of a particular size from input images. To enlarge the dataset, we generate more training patches by flips and rotations.
+The lack of training data is a universal problem in machine learning. To maximize both the quantity and quality of our training data, we have implemented a sliding window approach which extract patches of a particular size from input images. To enlarge the dataset, we generate more training patches by flips and rotations.
 
 Afterwards, we zero-mean the training dataset by subtracting the mean image from all patches. We do not divide by standard deviation as the images are naturally well distributed.
 
@@ -74,9 +74,9 @@ Finally, we balance the training dataset to include the same number of [0, 1] an
 Here, we provide a short overview of possible CNN layers that are used in the following sections.
 \begin{itemize}
 	\item \conv{N}{I}{O} \\
-	Standard convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
+	Standard convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded so it retains the size.
 	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N, stride S.
-	\item \lrn - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
+	\item \lrn - Local response normalization layer across the current batch \cite{tensorflow.2015}.
 	\item \fc{I}{O} - Standard fully connected layer from I input channels to O output channels.
 \end{itemize}
 
@@ -89,26 +89,26 @@ The baseline CNN operates on patches of size $16 \times 16$. It has two convolut
 \end{center}
 ReLU and \maxpool{2}{2} is applied after every convolutional layer.
 
-The activation functions in the $ \cal{FC} $ layers are identities. We apply \textit{softmax} to two outputs to get probabilities for both classes. All the weights are initialized randomly with standard deviation 0.1. The weights in $ \cal{FC} $ layers are L2 regularized with a factor $ 5 \times 10^{-4} $. We use a plain vanilla SGD optimizer with an exponentially decaying learning rate, starting at 0.01 with a decay rate 0.95. Batch size is 16. 
+The activation functions in the $ \cal{FC} $ layers are identities. We apply \textit{softmax} to two outputs to get the probabilities for both classes. All the weights are initialized normally with standard deviation 0.1. The weights in the $ \cal{FC} $ layers are L2 regularized with a factor $ 5 \times 10^{-4} $. We use a plain vanilla SGD optimizer with an exponentially decaying learning rate, starting at 0.01 with a decay rate 0.95. Batch size is 16. 
 
 \subsection{Final CNN Architecture}
 \label{subsec:CNN}
-We have been tweaking the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the layer widths and filter sizes, tried using dropout or local response normalization instead of L2 regularization of $ \cal{FC} $ weights and tested different optimizers (momentum and Adam) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges.
+We have been tweaking the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the widths of layers and filter sizes, tried using dropout or local response normalization instead of L2 regularization of $ \cal{FC} $ weights, tested different optimizers (momentum and Adam) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges.
 
-Moreover, we increased the context size to $ 64\times64 $, i.e. the network predicts a label for the central $ 16\times16 $ patch using the larger context. Boundaries are mirrored.
+Moreover, we increased the context size to $ 64\times64 $, i.e. the network predicts a label for the central $ 16\times16 $ patch using larger context. Boundaries are mirrored.
 
 The final architecture of the 4-layer CNN is the following:
 \begin{center}
 	\conv{5}{3}{16} -- \conv{3}{16}{32} -- \\ 
-	\conv{3}{32}{32} -- \conv{3}{32}{164} -- \\
+	\conv{3}{32}{32} -- \conv{3}{32}{64} -- \\
 	\fc{1024}{64} -- ReLU -- \fc{64}{2}.
 \end{center}
 After every convolutional layer, we apply ReLU, \lrn and \maxpool{2}{2}.
 
-The activation functions in the first $ \cal{FC} $ layer are identities and in the second sigmoids. We use neither dropout, nor L2 regularization of $ \cal{FC} $ weights. The class probabilities are again obtained using \textit{softmax}.
+The activation functions in the first $ \cal{FC} $ layer are identities and in the second sigmoids. We use neither dropout, nor L2 regularization of the $ \cal{FC} $ weights. The class probabilities are again obtained using \textit{softmax}.
 
-After discovering that exponential decaying learning rate does not help, we have fixed it to the empirically good value 0.01. 
-In the final model, we use Adam optimizer with $ \epsilon = 0.1 $ and the batch size is 32.
+After discovering that exponential decaying learning rate does not help, we have fixed it to the empirically determined value 0.01. 
+In the final model, we use Adam optimizer with $ \epsilon = 0.1 $ and the batch size is 32. All the weights are initialized normally using standard deviation 0.1.
 
 
 \subsection{Postprocessing}
