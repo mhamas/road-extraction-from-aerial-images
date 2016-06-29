@@ -9,7 +9,11 @@
 \usepackage{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}{\textbf{TODO: #1}}}}
-
+\newcommand{\conv}[3]{$ \cal{C} $(#1$ \times  $#1, #2, #3)}
+\newcommand{\relu}{$ \cal{R} $}
+\newcommand{\maxpool}[2]{$ \cal{M} $(#1$ \times $#1, #2)}
+\newcommand{\lrn}{$ \cal{LRN} $}
+\newcommand{\fc}[2]{$ \cal{FC} $(#1, #2)}
 
 \begin{document}
 \title{Road Extraction from Aerial Images}
@@ -56,7 +60,6 @@ We evaluate our algorithm to two baselines
 	\item Simple 2 layer CNN with dictionary filtering applied on top of it.
 \end{enumerate}
 
-
 \section{Models and Methods}
 \label{sec:MM}
 In this section we will describe
@@ -80,17 +83,18 @@ Finally, we balance the training dataset to include the same number of [0, 1] an
 \subsection{Notation - CNN Architecture}
 Here, we provide a short overview of possible CNN layers that are used in the following sections.
 \begin{enumerate}
-	\item $ \cal{C} $(N$ \times  $N, I, O) \\
+	\item \conv{N}{I}{O} \\
 	Convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
-	\item $ \cal{R} $ - ReLU layer (rectified linear unit)
-	\item $ \cal{M} $(N$ \times $N) - Max-pooling layer of size N$ \times $N, stride 1.
-	\item $ \cal{LRN} $ - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
-	\item $ \cal{FC} $(I, O) - Fully connected layer from I input channels to O output channels.
+	\item \relu ~- ReLU layer (rectified linear unit)
+	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N and stride S.
+	\item \lrn - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
+	\item \fc{I}{O} - Fully connected layer from I input channels to O output channels.
 \end{enumerate}
 
 \subsection{Baseline CNN Architecture}
 \label{subsec:baselineCNN}
-TODO - Matej
+%The baseline CNN operates on patches of size $16 \times 16$. It has two layers with the following architecture: \conv{5}{3}{X}
+
 
 \subsection{Final CNN Architecture}
 \label{subsec:CNN}
