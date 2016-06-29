@@ -530,18 +530,18 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         # TRAINING SET PREDICTIONS
         print("Running prediction on training set")
-        prediction_training_dir = "../results/CNN_Output_Baseline/training/raw/"
+        prediction_training_dir = "../results/CNN_Output_Baseline/training/"
         if not os.path.isdir(prediction_training_dir):
             os.mkdir(prediction_training_dir)
         for i in range(1, TRAINING_SIZE + 1):
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "raw_satImage_%.3d_patches.png" % i)
-            #oimg = get_prediction_with_overlay(train_data_filename, i)
-            #oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+            Image.fromarray(pimg).save(prediction_training_dir + "raw/raw_satImage_%.3d_patches.png" % i)
+            oimg = get_prediction_with_overlay(train_data_filename, i)
+            oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         # TEST SET PREDICTIONS
         print("Running prediction on test set")
-        test_prediction_dir = "../results/CNN_Output_Baseline/test/raw/"
+        test_prediction_dir = "../results/CNN_Output_Baseline/test/"
         test_input_dir = "../data/test_set/"
 
         if not os.path.isdir(test_prediction_dir):
@@ -564,7 +564,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                 # Visualization
                 pimg = get_prediction_test(i, test_input_dir)
                 pimg = Image.fromarray(pimg).convert("RGB")
-                pimg.save(test_prediction_dir + "raw_test_" + str(i) + "_patches.png")
+                pimg.save(test_prediction_dir + "raw/raw_test_" + str(i) + "_patches.png")
+                oimg = get_prediction_with_overlay(test_input_dir, i)
+                oimg.save(test_prediction_dir + "overlay_test_" + str(i) + "_patches.png")
 
                 # Construction of the submission file
                 prediction = get_prediction_test(i, test_input_dir)
