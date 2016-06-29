@@ -74,22 +74,42 @@ Finally, we balance the training dataset to include the same number of [0, 1] an
 Here, we provide a short overview of possible CNN layers that are used in the following sections.
 \begin{itemize}
 	\item \conv{N}{I}{O} \\
-	Convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
-	\item \relu - ReLU layer (rectified linear unit)
-	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N and stride S.
+	Standard convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
+	\item \maxpool{N}{S} - Max-pooling layer of size N$ \times $N, stride S.
 	\item \lrn - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
-	\item \fc{I}{O} - Fully connected layer from I input channels to O output channels.
+	\item \fc{I}{O} - Standard fully connected layer from I input channels to O output channels.
 \end{itemize}
 
 \subsection{Baseline CNN Architecture}
 \label{subsec:baselineCNN}
-The baseline CNN operates on patches of size $16 \times 16$. It has two convolutional and two fully connected layers with the following architecture: \\ \conv{5}{3}{32} -- \relu -- \maxpool{2}{2} -- \conv{5}{32}{64} -- \relu -- \maxpool{2}{2} -- \fc{1024}{512} -- \relu -- \fc{512}{2}.
+The baseline CNN operates on patches of size $16 \times 16$. It has two convolutional and two fully connected layers with the following architecture:
+\begin{center}
+	\conv{5}{3}{32} -- \conv{5}{32}{64} -- \\ 
+	\fc{1024}{512} -- ReLU -- \fc{512}{2}.
+\end{center}
+ReLU and \maxpool{2}{2} is applied after every convolutional layer.
 
-We apply \textit{softmax} to two outputs to get probabilities for both classes. All the weights are initialized randomly with standard deviation 0.1. The weights in $ \cal{FC} $ layers are L2 regularized with a factor $ 5 \times 10^{-4} $. We use a plain vanilla SGD optimizer with an exponentially decaying learning rate, starting at 0.01 with a decay rate 0.95. Batch size is 16. 
+The activation functions in the $ \cal{FC} $ layers are identities. We apply \textit{softmax} to two outputs to get probabilities for both classes. All the weights are initialized randomly with standard deviation 0.1. The weights in $ \cal{FC} $ layers are L2 regularized with a factor $ 5 \times 10^{-4} $. We use a plain vanilla SGD optimizer with an exponentially decaying learning rate, starting at 0.01 with a decay rate 0.95. Batch size is 16. 
 
 \subsection{Final CNN Architecture}
 \label{subsec:CNN}
-TODO - \textbf{Matej + Taivo}
+We have been tweaking the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the layer widths and filter sizes, tried using dropout or local response normalization instead of L2 regularization of $ \cal{FC} $ weights and tested different optimizers (momentum and Adam) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges.
+
+Moreover, we increased the context size to $ 64\times64 $, i.e. the network predicts a label for the central $ 16\times16 $ patch using the larger context. Boundaries are mirrored.
+
+The final architecture of the 4-layer CNN is the following:
+\begin{center}
+	\conv{5}{3}{16} -- \conv{3}{16}{32} -- \\ 
+	\conv{3}{32}{32} -- \conv{3}{32}{164} -- \\
+	\fc{1024}{64} -- ReLU -- \fc{64}{2}.
+\end{center}
+After every convolutional layer, we apply ReLU, \lrn and \maxpool{2}{2}.
+
+The activation functions in the first $ \cal{FC} $ layer are identities and in the second sigmoids. We use neither dropout, nor L2 regularization of $ \cal{FC} $ weights. The class probabilities are again obtained using \textit{softmax}.
+
+After discovering that exponential decaying learning rate does not help, we have fixed it to the empirically good value 0.01. 
+In the final model, we use Adam optimizer with $ \epsilon = 0.1 $ and the batch size is 32.
+
 
 \subsection{Postprocessing}
 The convolutional neural network outputs independent predictions for all $ 16 \times 16 $ patches of the processed image. The spatial arrangement of predictions however contains valuable information, which can be used to further improve the prediction accuracy. For example, it is highly unlikely to observe a road which only covers one patch. If the CNN predicts an isolated patch as belonging to the road label, we can discard this prediction with high certainty. The opposite also holds: a patch labeled as non-road surrounded by patches labeled as road is most likely part of the road as well. Oftentimes false negatives are caused by shadows or overlapping structures such as railway bridges.
