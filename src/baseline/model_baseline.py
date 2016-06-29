@@ -539,7 +539,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
             return img_prediction
 
-        with open('submission.csv', 'w') as csvfile:
+        with open('baseline_submission.csv', 'w') as csvfile:
             writer = csv.writer(csvfile, delimiter=',')
             writer.writerow(['id', 'prediction'])
             for i in range(1, TEST_SIZE + 1):
