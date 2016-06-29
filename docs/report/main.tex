@@ -6,6 +6,7 @@
 \usepackage{graphicx}	% For figure environment
 \usepackage{color}
 \usepackage{subcaption}
+\usepackage{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}{\textbf{TODO: #1}}}}
 
@@ -76,7 +77,18 @@ We then generate the corresponding ground truth labels from the input images by 
 
 Finally, we balance the training dataset to include the same number of [0, 1] and [1, 0] examples. This is done to prevent a potential bias learnt by the CNN.
 
-\subsection{Baseline CNN}
+\subsection{Notation - CNN Architecture}
+Here, we provide a short overview of possible CNN layers that are used in the following sections.
+\begin{enumerate}
+	\item $ \cal{C} $(N$ \times  $N, I, O) \\
+	Convolutional layer with filters of size N$ \times $N, I input channels and O outputs channels. The default stride is 1 both vertically and horizontally and the image is padded (using ``SAME'' flag in Tensorflow).
+	\item $ \cal{R} $ - ReLU layer (rectified linear unit)
+	\item $ \cal{M} $(N$ \times $N) - Max-pooling layer of size N$ \times $N, stride 1.
+	\item $ \cal{LRN} $ - Local response normalization layer across the current batch\footnote{\url{https://www.tensorflow.org/versions/master/api_docs/python/nn.html\#local_response_normalization}}
+	\item $ \cal{FC} $(I, O) - Fully connected layer from I input channels to O output channels.
+\end{enumerate}
+
+\subsection{Baseline CNN Architecture}
 \label{subsec:baselineCNN}
 TODO - Matej
 
