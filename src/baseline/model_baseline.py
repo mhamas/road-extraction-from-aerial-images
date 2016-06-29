@@ -9,6 +9,7 @@ import sys
 import urllib
 import csv
 import numpy as np
+import time
 import matplotlib.image as mpimg
 from PIL import Image
 
@@ -23,7 +24,11 @@ NUM_LABELS = 2
 TRAINING_SIZE = 100
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 16  # 64
-NUM_EPOCHS = 5
+
+TERMINATE_AFTER_TIME = True
+NUM_EPOCHS = 1
+MAX_TRAINING_TIME_IN_SEC = 30 * 60
+
 RESTORE_MODEL = False  # If True, restore existing model instead of training a new one
 RECORDING_STEP = 1000
 
@@ -463,9 +468,15 @@ def main(argv=None):  # pylint: disable=unused-argument
             # Loop through training steps.
             print('Total number of iterations = ' + str(int(num_epochs * train_size / BATCH_SIZE)))
 
+            start = time.time()
+
             training_indices = range(train_size)
 
-            for iepoch in range(num_epochs):
+            run_training = True
+
+            iepoch = 0
+
+            while run_training:
 
                 # Permute training indices
                 perm_indices = numpy.random.permutation(training_indices)
@@ -510,6 +521,12 @@ def main(argv=None):  # pylint: disable=unused-argument
                 # Save the variables to disk.
                 save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
                 print("Model saved in file: %s" % save_path)
+
+            iepoch += 1
+            if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
+                run_training = False
+            if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
+                run_training = False
 
         # TRAINING SET PREDICTIONS
         print("Running prediction on training set")
