@@ -82,3 +82,4 @@ src/profile.txt
 *.bib~
 *.blg
 docs/report/main.pdf
+docs/report/main.out
