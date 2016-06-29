@@ -11,11 +11,12 @@ import numpy as np
 import tensorflow as tf
 import math
 import scipy
+import scipy.misc
 
 import patch_extraction_module as pem
 import data_loading_module as dlm
 import constants as const
-import postprocessing as pm
+#import postprocessing as pm
 
 import cProfile
 import pstats
@@ -32,10 +33,10 @@ NP_SEED = int(time.time());
 BATCH_SIZE = 32
 BALANCE_SIZE_OF_CLASSES = True  # recommended to leave True
 
-RESTORE_MODEL = True
+RESTORE_MODEL = False
 TERMINATE_AFTER_TIME = True
 NUM_EPOCHS = 1
-MAX_TRAINING_TIME_IN_SEC = 2 * 3600  # NB: 28800 = 8 hours
+MAX_TRAINING_TIME_IN_SEC = 20 * 3600  # NB: 28800 = 8 hours
 RECORDING_STEP = 100
 
 BASE_LEARNING_RATE = 0.01
@@ -43,6 +44,7 @@ DECAY_RATE = 0.99
 DECAY_STEP = 100000
 LOSS_WINDOW_SIZE = 10
 
+IMG_PATCHES_SAVE = False
 IMG_PATCHES_RESTORE = False
 TRAINING_SIZE = 100
 
@@ -50,10 +52,10 @@ VALIDATION_SIZE = 10000  # Size of the validation set in # of patches
 VALIDATE = False
 VALIDATION_STEP = 500  # must be multiple of RECORDING_STEP
 
-VISUALIZE_PREDICTION_ON_TRAINING_SET = False
+VISUALIZE_PREDICTION_ON_TRAINING_SET = True
 VISUALIZE_NUM = -1  # -1 means visualize all
 
-RUN_ON_TEST_SET = False
+RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
 tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
@@ -103,9 +105,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     np.random.seed(NP_SEED)
     num_epochs = NUM_EPOCHS
 
-    train_data_filename = ROOT_DIR + "data/training/images/"
-    train_labels_filename = ROOT_DIR + "data/training/groundtruth/"
-    test_data_filename = ROOT_DIR + "data/test_set/"
+    train_data_filename = ROOT_DIR + "data/training/images/downsampled/"
+    train_labels_filename = ROOT_DIR + "data/training/groundtruth/downsampled/"
+    test_data_filename = ROOT_DIR + "data/test_set/downsampled/"
 
     #######################
     ### LOADING PATCHES ###
@@ -130,8 +132,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         print(const.PATCHES_MEAN_PATH + ".npy" + " removed.")
         train_data = dlm.extract_data(train_data_filename, TRAINING_SIZE, 1)
         train_labels = dlm.extract_labels(train_labels_filename, TRAINING_SIZE, 1)
-        np.save(patches_filename, train_data)
-        np.save(labels_filename, train_labels)
+
+        if IMG_PATCHES_SAVE:
+            np.save(patches_filename, train_data)
+            np.save(labels_filename, train_labels)
 
     print("Shape of patches: " + str(train_data.shape))
     print("Shape of labels:  " + str(train_labels.shape))
@@ -171,9 +175,10 @@ def main(argv=None):  # pylint: disable=unused-argument
             train_labels = train_labels[new_indices]
             train_size = train_labels.shape[0]
 
-            num_of_datapoints_per_class();
-            np.save(patches_balanced_filename, train_data)
-            np.save(labels_balanced_filename, train_labels)
+            num_of_datapoints_per_class()
+            if IMG_PATCHES_SAVE:
+                np.save(patches_balanced_filename, train_data)
+                np.save(labels_balanced_filename, train_labels)
 
     ##########################################
     ### SETUP OUT OF SAMPLE VALIDATION SET ###
@@ -266,7 +271,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     num_of_CNN_params_to_learn += conv4_dim * conv4_dim * conv4_num_of_maps
 
     ### FULLY CONNECTED LAYER 1 ###
-    tmp_neuron_num = int((const.IMG_PATCH_SIZE / 8) * (const.IMG_PATCH_SIZE / 8) * conv4_num_of_maps);
+    tmp_neuron_num = int(const.IMG_CONTEXT_SIZE / 16 * const.IMG_CONTEXT_SIZE / 16 * conv4_num_of_maps)
     with tf.name_scope('fc1') as scope:
         fc1_size = 64
         fc1_weights = tf.Variable(
@@ -402,7 +407,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             img_truth = mpimg.imread(truth_input_path)
 
         # Get prediction
-        stride = const.IMG_PATCH_SIZE
+        stride = const.IMG_PATCH_SIZE # TODO 4
         prediction = get_prediction(tf_session, img, stride)
         ### POST PROCESSING ###
         # for i in range(1):
@@ -430,7 +435,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         oimg2.save(output_path_overlay + "_patches.png")
 
         # Raw image
-        scipy.misc.imsave(output_path_raw + "_pixels.png", prediction_as_per_pixel_img)
+        scipy.misc.imsave(output_path_raw.replace("/raw/", "/high_res_raw/") + "_pixels.png", prediction_as_per_pixel_img)
         scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
 
         return (prediction, prediction_as_binary_img)
@@ -480,8 +485,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
 
         ##### DROPOUT #####
-        # if train:
-        #     hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
+        #if train:
+        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
 
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
@@ -685,11 +690,11 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Save the variables to disk.
                     save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
 
-        prefix_results = ROOT_DIR + "results/"
+        prefix_results = ROOT_DIR + "results/CNN_Output/"
 
         if VISUALIZE_PREDICTION_ON_TRAINING_SET:
             print("--- Visualizing prediction on training set ---")
-            prediction_training_dir = prefix_results + "predictions_training/"
+            prediction_training_dir = prefix_results + "training/"
             if not os.path.isdir(prediction_training_dir):
                 os.mkdir(prediction_training_dir)
             limit = TRAINING_SIZE + 1 if VISUALIZE_NUM == -1 else VISUALIZE_NUM
@@ -699,7 +704,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 input_path = train_data_filename + img_name + ".png"
                 truth_path = train_labels_filename + img_name + ".png"
                 output_path_overlay = prediction_training_dir + "overlay_" + img_name
-                output_path_raw = prediction_training_dir + "raw_" + img_name
+                output_path_raw = prediction_training_dir + "raw/" + "raw_" + img_name
 
                 get_prediction_with_overlay(s, input_path, output_path_overlay, output_path_raw, truth_path)
 
@@ -708,7 +713,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         if RUN_ON_TEST_SET:
             print("--- Running prediction on test set ---")
-            prediction_test_dir = prefix_results + "predictions_test/"
+            prediction_test_dir = prefix_results + "test/"
             if not os.path.isdir(prediction_test_dir):
                 os.mkdir(prediction_test_dir)
 
@@ -722,7 +727,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     img_name = "test_" + str(i)
                     input_path = test_data_filename + img_name + ".png"
                     output_path_overlay = prediction_test_dir + "overlay_" + img_name
-                    output_path_raw = prediction_test_dir + "raw_" + img_name
+                    output_path_raw = prediction_test_dir + "raw/" + "raw_" + img_name
 
                     (_, prediction_as_img) = get_prediction_with_overlay(s, input_path, output_path_overlay,
                                                                          output_path_raw)
@@ -731,14 +736,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Saving to csv file for submission
                     num_rows = prediction_as_img.shape[0]
                     num_cols = prediction_as_img.shape[1]
-                    rows_out = np.empty((0, 2))
+                    #rows_out = np.empty((0, 2))
                     for x in range(0, num_rows, const.IMG_PATCH_SIZE):
                         for y in range(0, num_cols, const.IMG_PATCH_SIZE):
                             id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
-                            next_row = np.array([[id, str(prediction_as_img[y][x])]])
-                            rows_out = np.concatenate((rows_out, next_row))
-                    writer.writerows(rows_out)
-            csvfile.close()
+                            #next_row = np.array([[id, str(prediction_as_img[y][x])]])
+                            writer.writerow([id, str(prediction_as_img[y][x])])
+                            #rows_out = np.concatenate((rows_out, next_row))
+                    #writer.writerows(rows_out)
 
     # End profiling and save stats
     pr.disable()
@@ -750,7 +755,7 @@ def main(argv=None):  # pylint: disable=unused-argument
 
 
 if __name__ == '__main__':
-
+    #main()
     tf.app.run()
 
 

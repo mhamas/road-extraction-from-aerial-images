@@ -31,7 +31,7 @@ def train_dictionary(filename, patch_size, num_images):
     # 1 Load all the ground truth images => convert them into lowres label images
     print('Extracting reference patches...')
     t0 = time()
-    labels = dlm.extract_label_images(filename, num_images, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE)
+    labels = dlm.extract_label_images(filename, num_images, const.POSTPRO_PATCH_SIZE, const.POSTPRO_PATCH_SIZE)
 
     if (showImages):
         plt.figure()

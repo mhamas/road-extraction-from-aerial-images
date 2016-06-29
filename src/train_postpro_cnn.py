@@ -80,11 +80,11 @@ def train_model():
     num_images = 100
     
     # ground truth label images and CNN output
-    labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.IMG_PATCH_SIZE, const.IMG_PATCH_SIZE)
+    labelsTrue = dlm.extract_label_images(train_labels_filename, num_images, const.POSTPRO_PATCH_SIZE, const.POSTPRO_PATCH_SIZE)
     labelsCNN  = dlm.read_image_array(train_data_filename, num_images, "raw_satImage_%.3d_patches")
     
     for i in range(0, len(labelsCNN)):
-        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.IMG_PATCH_SIZE, labelsCNN[i].shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
+        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.POSTPRO_PATCH_SIZE, labelsCNN[i].shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
         
     elapsed = time.time() - t
     print("Loading training data took: " + str(elapsed) + " s")
@@ -433,7 +433,7 @@ def train_model():
 #        test_data_filename = "../results/CNN_Output/test/raw/"
 #        testLabels  = dlm.read_image_array(test_data_filename, num_test_images, "raw_test_%d_patches")    
 #        for i in range(0, len(testLabels)):
-#            testLabels[i] = resize(testLabels[i], (testLabels[i].shape[0] // const.IMG_PATCH_SIZE, testLabels[i].shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
+#            testLabels[i] = resize(testLabels[i], (testLabels[i].shape[0] // const.POSTPRO_PATCH_SIZE, testLabels[i].shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
 #            output = get_prediction(s, testLabels[i])
             
         postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
@@ -456,7 +456,7 @@ def train_model():
             if os.path.isfile(image_filename):
                 img = mpimg.imread(image_filename) 
                 imSizes.append(img.shape)
-                output = get_prediction(s, resize(img, (img.shape[0] // const.IMG_PATCH_SIZE, img.shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True) )
+                output = get_prediction(s, resize(img, (img.shape[0] // const.POSTPRO_PATCH_SIZE, img.shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True) )
                 output = np.round(output)
                 outputImages.append(output)
                 scipy.misc.imsave(outputDir + ("satImage_%d" % i) + ".png" , resize(outputImages[i - 1],  img.shape, order=0, preserve_range=True))

@@ -1,0 +1,1 @@
+*IMPORTANT:* all scripts here should be run while in the root folder because they contain absolute paths.

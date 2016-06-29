@@ -9,13 +9,22 @@ are not found cached on the disk, this script automatically trains them
 
 
 """
+import glob
+
+import model_taivo_test as cnn
 import postprocessing as pp
+from cilutil import upsampling
 
 # Train CNN
-#TODO: Train CNN if needed, otherwise load model from disk
+cnn.main()
 
-# Compute CNN predictions
-#TODO: Generate predictions using CNN (save to image files)
+# Upsample predictions for both training and test set
+UPSAMPLE = True
+if UPSAMPLE:
+    training_filenames = glob.glob("../results/CNN_Output/training/*/*.png")
+    test_filenames = glob.glob("../results/CNN_Output/test/*/*.png")
+    upsampling.upsample_training(training_filenames)
+    upsampling.upsample_test(test_filenames)
 
 # Apply post processing to CNN output
 pp.generate_output()

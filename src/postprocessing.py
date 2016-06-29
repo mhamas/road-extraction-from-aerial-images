@@ -9,7 +9,7 @@ import csv
 from skimage.transform import resize
 
 import constants as const
-import trainDictionary as dict_train
+import trainDictionary as dict_trainc
 import denoise_dictionary as dict_denoise
 import denoise_low_rank as lowrank_denoise
 import train_svm as svm_train
@@ -93,7 +93,7 @@ def postprocess_prediction(prediction,  width, height):
     
 def apply_postprocessing(img, dictionary, svm):
     # resize img to have 1 px for each 16 x 16 patch
-    img = resize(img, (img.shape[0] // const.IMG_PATCH_SIZE, img.shape[1] // const.IMG_PATCH_SIZE), order=0, preserve_range=True)        
+    img = resize(img, (img.shape[0] // const.POSTPRO_PATCH_SIZE, img.shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
     img2 = np.zeros(img.shape)
     img2[img >= 0.5] = 1 # this would be the prediction without post processing
     
@@ -137,7 +137,7 @@ def create_submission_file(images):
             rows_out = np.empty((0,2))
             for x in range(0, num_rows):
                 for y in range(0, num_cols):
-                    id = str(i).zfill(3) + "_" + str(const.IMG_PATCH_SIZE * x) + "_" + str(const.IMG_PATCH_SIZE * y)
+                    id = str(i).zfill(3) + "_" + str(const.POSTPRO_PATCH_SIZE * x) + "_" + str(const.POSTPRO_PATCH_SIZE * y)
                     next_row = np.array([[id, str(img[y][x])]])
                     rows_out = np.concatenate((rows_out, next_row))
             writer.writerows(rows_out)
