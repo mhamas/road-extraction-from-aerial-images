@@ -518,13 +518,13 @@ def main(argv=None):  # pylint: disable=unused-argument
             os.mkdir(prediction_training_dir)
         for i in range(1, TRAINING_SIZE + 1):
             pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "raw_satImage_" + str(i) + "_patches.png")
+            Image.fromarray(pimg).save(prediction_training_dir + "raw_satImage_%.3d_patches.png" % i)
             #oimg = get_prediction_with_overlay(train_data_filename, i)
             #oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
 
         # TEST SET PREDICTIONS
         print("Running prediction on test set")
-        test_prediction_dir = "../results/CNN_Output_Baseline/test/raw"
+        test_prediction_dir = "../results/CNN_Output_Baseline/test/raw/"
         test_input_dir = "../data/test_set/"
 
         if not os.path.isdir(test_prediction_dir):
