@@ -97,7 +97,27 @@ The activation functions in the FC layers are identities. We apply \textit{softm
 \label{subsec:CNN}
 We modified the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the widths of layers and filter sizes, tried using dropout or local response normalization instead of L2 regularization of FC weights, tested different optimizers (momentum and Adam) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges.
 
-Moreover, we increased the context size to $ 64\times64 $, i.e. the network predicts a label for the central $ 16\times16 $ patch using larger context. Image boundaries are handled using a mirror boundary conditions.
+\begin{figure}
+	\centering
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/full_img}
+		\caption{Input image}
+	\end{subfigure}
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+		\caption{$ 16 \times 16 $ patches}
+	\end{subfigure}
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context64_ds}
+		\caption{$ 64 \times 64 $ patches (extracted from the downsampled image)}
+	\end{subfigure}
+	\caption{Aerial image of an urban scene and some example patches. Note, that in the $ 16 \times 16 $ patches it is can be impossible to infer the correct labeling due to the limited perception of the surroundings.}
+	\label{fig:context_size}
+\end{figure}
+
+Moreover, we increased the context size to $ 64\times64 $, i.e. the network predicts a label for the central $ 16\times16 $ patch using larger context. Image boundaries are handled using a mirror boundary conditions. Additionally, we downsample training and testing images by a factor of two. This means that the context considered by the neural network effectively doubles. Figure \ref{fig:context_size} shows a comparison between the context size of the baseline CNN and the context size of the improved CNN.
+
+
 
 The final architecture of the 4-layer CNN is the following:
 \begin{center}
