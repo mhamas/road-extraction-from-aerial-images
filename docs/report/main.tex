@@ -157,13 +157,13 @@ We also experimented using an additional CNN for post-processing, as suggested b
 
 \section{Results}
 \label{sec:results}
-The neural network was implemented using TensorFlow \cite{tensorflow.2015} and the post processing using scikit-learn \cite{sklearn.2011}. Our CNN model trains for around 20 hours on a cluster node with 16 cores (Intel Xeon E5-2697 v2 or Xeon E5-2680 v3 depending on availability on the Euler cluster) and 128GB of memory and the post processing SVM trains for around 1.5 hours \todo{Delio: on your laptop, right? should we add specs?}. All code runs exclusively on the CPU, since the used cluster does not provide any GPU nodes. Given the trained models, individual satellite images are processed in a matter of seconds.
+The neural networks were implemented using TensorFlow \cite{tensorflow.2015} and the post processing using scikit-learn \cite{sklearn.2011}. For the baseline CNN, we used the code provided in the lecture materials, without any modifications. We trained it for around 30 minutes, which was sufficient to achieve convergence. The training was done on a cluster node with 16 cores (Intel Xeon E5-2697 v2 or Xeon E5-2680 v3 depending on availability on the Euler cluster) and 128GB of memory. Our improved CNN model trains for around 20 hours on the same hardware. The post processing SVM trains for around 1.5 hours on a conventional desktop computer (Intel Core2 Quad q9550, 4GB of memory). All neural network code runs exclusively on the CPU, since the used cluster does not provide any GPU nodes. Given the trained models, individual satellite images are processed in a matter of seconds.
 
 \par 
 We compare our method to the two different baseline implementations described previously. The first is the CNN described in Section \ref{subsec:baselineCNN}. The second one is the same CNN combined with dictionary based denoising. We measure model accuracy as the reported score in the public Kaggle leader board. Ideally, one would compute an average cross validation error, to also have an estimate of the variance of the measured accuracy. However, since CNNs are very expensive to train we decided to report the Kaggle score only.
 
 \par
-The baseline CNN achieves an accuracy of only \todo{percent}. Post-processing the output from this network using learned dictionaries improves the accuracy to \todo{percent} percent. 
+The baseline CNN achieves an accuracy of only 77.65\%. Post-processing the output from this network using learned dictionaries improves the accuracy to \todo{percent} \%. 
 
 \par
 Our improved CNN on its own achieves an accuracy of  \todo{percent}. Applying our SVM based post-processing procedure on top of these outputs, we get an accuracy of around  \todo{percent}.
@@ -178,9 +178,45 @@ Adding dictionary based denoising on top of this baseline CNN improves the predi
 \par 
 The accuracy gain we achieve using our improved CNN is mostly due to the increased patch size. The larger context reveals much more information about the currently processed image patch. Despite the improved architecture, there are still a lot of mispredictions. 
 
-\par
-Our post-processing algorithm manages to further reduce error. In \todo{BEFORE AND AFTER FIGURE} we can see, that almost all noise has been removed. There are still some areas where the post-processing is not very successful. Sometimes, the output predicted by the CNN contains roads which do not well connect to each other. The post-processor often does not succeed in connecting these road segments. Also it seems to have a strong bias for orthogonal roads, since the test set is dominated by these road directions. We experimented with rotating the training images by $ 45\degree $, but did not succeed in improving the prediction accuracy. Our current algorithm often predicts diagonal roads to thin or even removes them partially. This is the most prominent limitation of our current approach. 
 
+\par
+Our post-processing algorithm manages to further reduce error. In \todo{BEFORE AND AFTER FIGURE} we can see, that almost all noise has been removed. There are still some areas where the post-processing is not very successful. Sometimes, the output predicted by the CNN contains roads which do not well connect to each other. The post-processor often does not succeed in connecting these road segments. Also it seems to have a strong bias for orthogonal roads, since the test set is dominated by these road directions. We experimented with rotating the training images by $ 45\degree $, but did not succeed in improving the prediction accuracy. Our current algorithm often predicts diagonal roads to thin or even removes them partially. This is the most prominent limitation of our current approach.
+
+\begin{figure}
+	\centering
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/full_img}
+		\caption{Raw CNN predictions}
+	\end{subfigure}
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+		\caption{Post-processed predictions}
+	\end{subfigure}
+	\caption{Results of our method and the two baseline algorithms.}
+	\label{fig:post_processing}
+\end{figure}
+
+\begin{figure*}	
+	\centering
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/full_img}
+		\caption{Input image}
+	\end{subfigure}
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+		\caption{Baseline CNN predictions}
+	\end{subfigure}	
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+		\caption{Denoised baseline CNN predictions}
+	\end{subfigure}	
+	\begin{subfigure}[t]{.2\textwidth}
+		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+		\caption{Our predictions}
+	\end{subfigure}		
+	\caption{Results of the two baseline algorithms and our method.}	
+	\label{fig:resuls}
+\end{figure*}
 \section{Summary}
 \label{sec:summary}
 TODO - last
