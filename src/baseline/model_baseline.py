@@ -3,18 +3,14 @@ Baseline for CIL project on road segmentation.
 This simple baseline consits of a CNN with two convolutional+pooling layers with a soft-max loss
 """
 
-import gzip
 import os
 import sys
-import urllib
 import csv
 import scipy.misc
 import numpy as np
 import time
 import matplotlib.image as mpimg
 from PIL import Image
-
-import tensorflow.python.platform
 
 import numpy
 import tensorflow as tf
@@ -78,9 +74,6 @@ def extract_data(filename, num_images):
             print('File ' + image_filename + ' does not exist')
 
     num_images = len(imgs)
-    IMG_WIDTH = imgs[0].shape[0]
-    IMG_HEIGHT = imgs[0].shape[1]
-    N_PATCHES_PER_IMAGE = (IMG_WIDTH / IMG_PATCH_SIZE) * (IMG_HEIGHT / IMG_PATCH_SIZE)
 
     img_patches = [img_crop(imgs[i], IMG_PATCH_SIZE, IMG_PATCH_SIZE) for i in range(num_images)]
     data = [img_patches[i][j] for i in range(len(img_patches)) for j in range(len(img_patches[i]))]
@@ -158,7 +151,7 @@ def label_to_img(imgwidth, imgheight, w, h, labels):
             else:
                 l = 0
             array_labels[j:j + w, i:i + h] = l
-            idx = idx + 1
+            idx += 1
     return array_labels
 
 
@@ -169,10 +162,10 @@ def img_float_to_uint8(img):
 
 
 def concatenate_images(img, gt_img):
-    nChannels = len(gt_img.shape)
+    n_channels = len(gt_img.shape)
     w = gt_img.shape[0]
     h = gt_img.shape[1]
-    if nChannels == 3:
+    if n_channels == 3:
         cimg = numpy.concatenate((img, gt_img), axis=1)
     else:
         gt_img_3c = numpy.zeros((w, h, 3), dtype=numpy.uint8)
@@ -185,13 +178,13 @@ def concatenate_images(img, gt_img):
     return cimg
 
 
-def make_img_overlay(img, predicted_img, true_img = None):
+def make_img_overlay(img, predicted_img, true_img=None):
     w = img.shape[0]
     h = img.shape[1]
     color_mask = np.zeros((w, h, 3), dtype=np.uint8)
-    color_mask[:,:,0] = predicted_img * PIXEL_DEPTH
-    if (true_img is None):
-        color_mask[:,:,1] = true_img * PIXEL_DEPTH
+    color_mask[:, :, 0] = predicted_img * PIXEL_DEPTH
+    if true_img is None:
+        color_mask[:, :, 1] = true_img * PIXEL_DEPTH
 
     img8 = img_float_to_uint8(img)
     background = Image.fromarray(img8, 'RGB').convert("RGBA")
@@ -216,9 +209,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     c1 = 0
     for i in range(len(train_labels)):
         if train_labels[i][0] == 1:
-            c0 = c0 + 1
+            c0 += 1
         else:
-            c1 = c1 + 1
+            c1 += 1
     print('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
     print('Balancing training data...')
@@ -237,9 +230,9 @@ def main(argv=None):  # pylint: disable=unused-argument
     c1 = 0
     for i in range(len(train_labels)):
         if train_labels[i][0] == 1:
-            c0 = c0 + 1
+            c0 += 1
         else:
-            c1 = c1 + 1
+            c1 += 1
     print('Number of data points per class: c0 = ' + str(c0) + ' c1 = ' + str(c1))
 
     # This is where training samples and labels are fed to the graph.
@@ -391,7 +384,6 @@ def main(argv=None):  # pylint: disable=unused-argument
         # print 'pool ' + str(pool.get_shape())
         # print 'pool2 ' + str(pool2.get_shape())
 
-
         # Reshape the feature map cuboid into a 2D matrix to feed it to the
         # fully connected layers.
         pool_shape = pool2.get_shape().as_list()
@@ -407,7 +399,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
         out = tf.matmul(hidden, fc2_weights) + fc2_biases
 
-        if train == True:
+        if train:
             summary_id = '_0'
             s_data = get_image_summary(data)
             filter_summary0 = tf.image_summary('summary_data' + summary_id, s_data)
@@ -547,9 +539,9 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print("Model saved in file: %s" % save_path)
 
                 iepoch += 1
-                if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
+                if TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC:
                     run_training = False
-                if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
+                if not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS:
                     run_training = False
 
         # TRAINING SET PREDICTIONS
