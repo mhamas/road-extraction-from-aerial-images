@@ -8,6 +8,7 @@ import os
 import sys
 import urllib
 import csv
+import scipy.misc
 import numpy as np
 import time
 import matplotlib.image as mpimg
@@ -184,11 +185,13 @@ def concatenate_images(img, gt_img):
     return cimg
 
 
-def make_img_overlay(img, predicted_img):
+def make_img_overlay(img, predicted_img, true_img = None):
     w = img.shape[0]
     h = img.shape[1]
-    color_mask = numpy.zeros((w, h, 3), dtype=numpy.uint8)
-    color_mask[:, :, 0] = predicted_img * PIXEL_DEPTH
+    color_mask = np.zeros((w, h, 3), dtype=np.uint8)
+    color_mask[:,:,0] = predicted_img * PIXEL_DEPTH
+    if (true_img is None):
+        color_mask[:,:,1] = true_img * PIXEL_DEPTH
 
     img8 = img_float_to_uint8(img)
     background = Image.fromarray(img8, 'RGB').convert("RGBA")
@@ -307,6 +310,12 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         return img_prediction
 
+
+    def get_image(filename):
+        im = mpimg.imread(filename)
+        return im
+
+
     # Get a concatenation of the prediction and groundtruth for given input file
     def get_prediction_with_groundtruth(filename, image_idx):
 
@@ -320,15 +329,29 @@ def main(argv=None):  # pylint: disable=unused-argument
         return cimg
 
     # Get prediction overlaid on the original image for given input file
-    def get_prediction_with_overlay(filename, image_idx):
+    # def get_prediction_with_overlay(filename, image_idx):
+    #
+    #     imageid = "satImage_%.3d" % image_idx
+    #     image_filename = filename + imageid + ".png"
+    #     img = mpimg.imread(image_filename)
+    #
+    #     img_prediction = get_prediction(img)
+    #     oimg = make_img_overlay(img, img_prediction)
+    #
+    #     return oimg
 
+    def get_prediction_with_overlay(img_filename, truth_filename, image_idx):
         imageid = "satImage_%.3d" % image_idx
-        image_filename = filename + imageid + ".png"
+
+        image_filename = img_filename + imageid + ".png"
         img = mpimg.imread(image_filename)
 
         img_prediction = get_prediction(img)
-        oimg = make_img_overlay(img, img_prediction)
 
+        truth_filename = truth_filename + imageid + ".png"
+        img_truth = mpimg.imread(truth_filename)
+
+        oimg = make_img_overlay(img, img_prediction, img_truth)
         return oimg
 
     # We will replicate the model structure for the training subgraph, as well
@@ -535,10 +558,10 @@ def main(argv=None):  # pylint: disable=unused-argument
         if not os.path.isdir(prediction_training_dir):
             os.mkdir(prediction_training_dir)
         for i in range(1, TRAINING_SIZE + 1):
-            pimg = get_prediction_with_groundtruth(train_data_filename, i)
-            Image.fromarray(pimg).save(prediction_training_dir + "raw/raw_satImage_%.3d_patches.png" % i)
-            #oimg = get_prediction_with_overlay(train_data_filename, i)
-            #oimg.save(prediction_training_dir + "overlay_" + str(i) + ".png")
+            pimg = get_prediction(get_image("%ssatImage_%.3d.png" % (train_data_filename, i)))
+            scipy.misc.imsave(prediction_training_dir + "raw/raw_satImage_%.3d_patches.png" % i, pimg)
+            oimg = get_prediction_with_overlay(train_data_filename, train_labels_filename, i)
+            oimg.save("%soverlay_%d.png" % (prediction_training_dir, i))
 
         # TEST SET PREDICTIONS
         print("Running prediction on test set")
@@ -564,10 +587,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                 print("Test img: " + str(i))
                 # Visualization
                 pimg = get_prediction_test(i, test_input_dir)
-                pimg = Image.fromarray(pimg).convert("RGB")
-                pimg.save(test_prediction_dir + "raw/raw_test_" + str(i) + "_patches.png")
-                #oimg = get_prediction_with_overlay(test_input_dir, i)
-                #oimg.save(test_prediction_dir + "overlay_test_" + str(i) + "_patches.png")
+                scipy.misc.imsave(test_prediction_dir + "raw/raw_test_" + str(i) + "_patches.png", pimg)
 
                 # Construction of the submission file
                 prediction = get_prediction_test(i, test_input_dir)
