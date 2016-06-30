@@ -9,7 +9,7 @@ import csv
 from skimage.transform import resize
 
 import constants as const
-import trainDictionary as dict_trainc
+import trainDictionary as dict_train
 import denoise_dictionary as dict_denoise
 import denoise_low_rank as lowrank_denoise
 import train_svm as svm_train
@@ -105,19 +105,11 @@ def apply_postprocessing(img, dictionary, svm):
     finalOutput = np.zeros(img.shape)
     finalOutput[result >= 0.5] = 1         
     
-# NOTE: dictionary currently empty object
+
 #    result = dict_denoise.denoiseImg(img, dictionary)
 #    finalOutput = np.zeros(img.shape)
 #    finalOutput[result >= 0.5] = 1            
-            
-    # when using low rank approx, use 3 atoms instead of just 1
-#    finalOutputLowRank = np.zeros(img.shape)
-#    finalOutputLowRank[lowrank_denoise.denoiseImg(finalOutput) >= 0.5] = 1
-#    
-#    plt.figure()
-#    plt.imshow(finalOutput, cmap=plt.cm.gray, interpolation='nearest')
-#    plt.show()      
-            
+    
     return finalOutput
     
 def create_submission_file(images):
@@ -152,20 +144,24 @@ def generate_output():
     outputDir = postpro_fn + "/test/"
     num_images = 50
     
+    # test set patches    
+#    prob_fn = "../results/CNN_Output/test/raw/"  
+#    inputFileName = "raw_test_%d_patches"
+#    outputDir = postpro_fn + "/test/"
+#    num_images = 50    
+    
     # training set
 #    prob_fn = "../results/CNN_Output/training/high_res_raw/"  
 #    inputFileName = "raw_satImage_%.3d_pixels"
 #    outputDir = postpro_fn + "/training/"
 #    num_images = 100
 
-
     if not os.path.isdir(outputDir):
         os.makedirs(outputDir)
-
-#    D = dict_train.get_dictionary()
-    D = []
+        
+    D = dict_train.get_dictionary()
     print("Trained dictionary")
-    svm = svm_train.getSVMClassifier()   
+    svm = svm_train.getSVMClassifier()    
     print("Trained SVM classifier")
     verbose = True
     outputImages = []
