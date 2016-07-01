@@ -17,3 +17,11 @@ mkdir -p results/CNN_Output_Baseline/training/raw
 # Create tmp directories to hold TensorFlow results
 mkdir -p tmp
 mkdir -p src/baseline/tmp
+
+# Downsample images
+cp data/test_set/*.png data/test_set/downsampled
+cp data/training/groundtruth/*.png data/training/groundtruth/downsampled
+cp data/training/images/*.png data/training/images/downsampled
+cd src
+python cilutil/resizing.py
+cd ..
