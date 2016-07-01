@@ -14,8 +14,7 @@ The code in this repository trains a convolutional neural network and adds a pos
  * skimage
 
 ## Setup
-* Run `sh setup.sh` while in the project root folder to set up the necessary file structures (assumes a Bash shell).
-* Copy the data so the `data/` folder contains the following
+* Copy the data so the `data/` folder contains the following:
 ```
 test_set/
   |-- downsampled/
@@ -39,6 +38,8 @@ training/
       |-- ...
       |-- satImage100.png
 ```
+* Run `sh setup.sh` while in the project root folder to set up the necessary file structures (assumes a Bash shell).
+
 
 ## Running
 **Warning:** running the code as-is requires around 100GB of memory.
