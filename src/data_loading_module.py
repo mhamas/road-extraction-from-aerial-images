@@ -1,3 +1,8 @@
+"""
+
+This module provides a variety of functions to load training data. 
+
+"""
 import os
 import matplotlib.image as mpimg
 import numpy as np
