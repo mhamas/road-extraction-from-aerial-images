@@ -9,9 +9,8 @@ import csv
 from skimage.transform import resize
 
 import constants as const
-import trainDictionary as dict_train
+import train_dictionary as dict_train
 import denoise_dictionary as dict_denoise
-import denoise_low_rank as lowrank_denoise
 import train_svm as svm_train
 import denoise_svm as svm_denoise
 
