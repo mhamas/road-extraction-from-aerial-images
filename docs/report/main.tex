@@ -63,7 +63,7 @@ In this section we describe data augmentation techniques, baseline and final CNN
 
 \subsection{Data Augmentation}
 \label{subsec:preprocessing}
-The lack of training data is a universal problem in machine learning. We extract patches of a particular size from input images. To enlarge the dataset, we generate more training patches by flips and rotations (\todo{Taivo, what transformations are we finally using?}). 
+The lack of training data is a universal problem in machine learning. We extract patches of a particular size from input images. To enlarge the dataset, we generate more training patches by rotating the image 90 degrees counter-clockwise.
 
 Afterwards, we zero-mean the training dataset by subtracting the mean image from all patches. We do not divide by standard deviation as the images are naturally well distributed.
 
@@ -93,7 +93,7 @@ The activation functions in the FC layers are identities. We apply \textit{softm
 
 \subsection{Improved CNN Architecture}
 \label{subsec:CNN}
-We modified the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the widths of layers and filter sizes, tried using dropout or local response normalization instead of L2 regularization of FC weights, tested different optimizers (momentum and Adam \cite{Adam.2014}) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges.
+We modified the baseline CNN in various ways to improve its performance. We made it deeper, experimented with the widths of layers and filter sizes, tried using dropout or local response normalization instead of L2 regularization of FC weights, tested different optimizers (momentum and Adam \cite{Adam.2014}) and learning rates. We also implemented cross-validation to estimate the training time after which the out-of-sample error converges and subsequently trained the CNN for at least that amount of time.
 
 \begin{figure}
 	\centering
@@ -127,9 +127,9 @@ The final architecture of the improved CNN uses four convolutional layers and is
 \end{center}
 After every convolutional layer, we apply ReLU, \lrn and \maxpool{2}{2} max-pooling.
 
-The activation functions in the first FC layer are identities and in the second sigmoids. We use neither dropout, nor L2 regularization of the FC weights as the local response normalization already sufficiently prevents overfitting. The class probabilities are again obtained using \textit{softmax}.
+The activation function in the first FC layer is ReLU and in the second the sigmoid function. We use neither dropout, nor L2 regularization of the FC weights as the local response normalization already sufficiently prevents overfitting. The class probabilities are again obtained using \textit{softmax}. Cross entropy is used as the loss function.
 
-After discovering that exponential decaying learning rate does not help, we have fixed it to the empirically determined value 0.01. 
+After discovering that exponentially decaying learning rate does not help, we have fixed it to the empirically determined value 0.01. 
 In the final model, we use the Adam optimizer algorithm \cite{Adam.2014} with $ \epsilon = 0.1 $ and the batch size is 32. All the weights are initialized normally using standard deviation 0.1.
 
 
