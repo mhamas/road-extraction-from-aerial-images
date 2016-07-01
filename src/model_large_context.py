@@ -1,22 +1,18 @@
 import os
 import sys
-import urllib
 import matplotlib.image as mpimg
 from PIL import Image
 
 import csv
 import time
-import code
 import numpy as np
 import tensorflow as tf
-import math
 import scipy
 import scipy.misc
 
 import patch_extraction_module as pem
 import data_loading_module as dlm
 import constants as const
-#import postprocessing as pm
 
 import cProfile
 import pstats
@@ -28,7 +24,7 @@ NUM_LABELS = 2
 NUM_CHANNELS = 3  # RGB images
 
 SEED = None
-NP_SEED = int(time.time());
+NP_SEED = int(time.time())
 
 BATCH_SIZE = 32
 BALANCE_SIZE_OF_CLASSES = True  # recommended to leave True
@@ -103,7 +99,6 @@ def main(argv=None):  # pylint: disable=unused-argument
     print("Train for: " + str(MAX_TRAINING_TIME_IN_SEC) + "s")
     print("--------------------------------\n")
     np.random.seed(NP_SEED)
-    num_epochs = NUM_EPOCHS
 
     train_data_filename = ROOT_DIR + "data/training/images/downsampled/"
     train_labels_filename = ROOT_DIR + "data/training/groundtruth/downsampled/"
@@ -150,16 +145,16 @@ def main(argv=None):  # pylint: disable=unused-argument
             c1 = 0
             for i in range(len(train_labels)):
                 if train_labels[i][0] == 1:
-                    c0 = c0 + 1
+                    c0 += 1
                 else:
-                    c1 = c1 + 1
+                    c1 += 1
             print("Number of data points per class: c0 = " + str(c0) + " c1 = " + str(c1))
-            return (c0, c1)
+            return c0, c1
 
         ### END OF AUXILIARY FUNCTION ###
 
         # Computing per class number of data points
-        (c0, c1) = num_of_datapoints_per_class();
+        (c0, c1) = num_of_datapoints_per_class()
 
         # Balancing
         if IMG_PATCHES_RESTORE:
@@ -279,7 +274,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                                 stddev=0.1,
                                 seed=SEED), name='weights')
         fc1_biases = tf.Variable(tf.constant(0.1, shape=[fc1_size]), name='biases')
-    num_of_FC_params_to_learn += tmp_neuron_num * fc1_size;
+    num_of_FC_params_to_learn += tmp_neuron_num * fc1_size
 
     ### FULLY CONNECTED LAYER 2 ###
     with tf.name_scope('fc1') as scope:
@@ -292,8 +287,8 @@ def main(argv=None):  # pylint: disable=unused-argument
 
     if not RESTORE_MODEL:
         print("----------- NUM OF PARAMS TO LEARN -----------")
-        print("Num of CNN params to learn: " + str(num_of_CNN_params_to_learn));
-        print("Num of FC params to learn: " + str(num_of_FC_params_to_learn));
+        print("Num of CNN params to learn: " + str(num_of_CNN_params_to_learn))
+        print("Num of FC params to learn: " + str(num_of_FC_params_to_learn))
         print("Total num of params to learn: " + str(num_of_CNN_params_to_learn + num_of_FC_params_to_learn))
         print("----------------------------------------------\n")
 
@@ -341,7 +336,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                     else:
                         l = 1
                     array_labels[j:j + w, i:i + h] = l
-                    idx = idx + 1
+                    idx += 1
             return array_labels
 
         ### END OF AUXILIARY FUNCTION 0 ###
@@ -353,7 +348,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             for i in range(0, imgheight, h):
                 for j in range(0, imgwidth, w):
                     array_labels[j:j + w, i:i + h] = labels[idx][1]
-                    idx = idx + 1
+                    idx += 1
             return array_labels
             ### END OF AUXILIARY FUNCTION 1 ###
 
@@ -371,7 +366,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             h = img.shape[1]
             color_mask = np.zeros((w, h, 3), dtype=np.uint8)
             color_mask[:, :, 0] = predicted_img * PIXEL_DEPTH
-            if (true_img is not None):
+            if true_img is not None:
                 color_mask[:, :, 1] = true_img * PIXEL_DEPTH
 
             img8 = img_float_to_uint8(img)
@@ -403,16 +398,12 @@ def main(argv=None):  # pylint: disable=unused-argument
         # Read images from disk
         img = mpimg.imread(input_path)
         img_truth = None
-        if truth_input_path != None:
+        if truth_input_path is not None:
             img_truth = mpimg.imread(truth_input_path)
 
         # Get prediction
-        stride = const.IMG_PATCH_SIZE # TODO 4
+        stride = const.IMG_PATCH_SIZE
         prediction = get_prediction(tf_session, img, stride)
-        ### POST PROCESSING ###
-        # for i in range(1):
-        #     prediction = pm.postprocess_prediction(prediction, int(np.sqrt(prediction.shape[0])), int(np.sqrt(prediction.shape[0])))
-        #######################
 
         # Show per pixel probabilities
         prediction_as_per_pixel_img = label_to_img(img.shape[0], img.shape[1], 1, 1, prediction)
@@ -435,7 +426,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         oimg2.save(output_path_overlay + "_patches.png")
 
         # Raw image
-        scipy.misc.imsave(output_path_raw.replace("/raw/", "/high_res_raw/") + "_pixels.png", prediction_as_per_pixel_img)
+        scipy.misc.imsave(output_path_raw.replace("/raw/", "/high_res_raw/") + "_pixels.png",
+                          prediction_as_per_pixel_img)
         scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
 
         return (prediction, prediction_as_binary_img)
@@ -484,10 +476,6 @@ def main(argv=None):  # pylint: disable=unused-argument
         # Fully connected layer. Note that the '+' operation automatically broadcasts the biases.
         hidden = tf.nn.relu(tf.matmul(reshape, fc1_weights) + fc1_biases)
 
-        ##### DROPOUT #####
-        #if train:
-        #    hidden = tf.nn.dropout(hidden, 0.5, seed=SEED)
-
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
 
@@ -505,7 +493,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             V = tf.reshape(V, (-1, img_w, img_h, 1))
             return V
 
-        if train == True:
+        if train:
             tf.image_summary('summary_data', get_image_summary(data))
             tf.image_summary('summary_conv1', get_image_summary(conv1))
             tf.image_summary('summary_pool1', get_image_summary(pool1))
@@ -616,7 +604,7 @@ def main(argv=None):  # pylint: disable=unused-argument
             start = time.time()
             run_training = True
             iepoch = 0
-            batch_index = 1;
+            batch_index = 1
             while run_training:
                 perm_indices = np.random.permutation(training_indices)
 
@@ -679,14 +667,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                         save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
 
                     batch_index += 1
-                    if (TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC):
-                        run_training = False;
+                    if TERMINATE_AFTER_TIME and time.time() - start > MAX_TRAINING_TIME_IN_SEC:
+                        run_training = False
                         # Save the variables to disk.
                         save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
 
                 iepoch += 1
-                if (not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS):
-                    run_training = False;
+                if not TERMINATE_AFTER_TIME and iepoch >= NUM_EPOCHS:
+                    run_training = False
                     # Save the variables to disk.
                     save_path = saver.save(s, FLAGS.train_dir + "/model.ckpt")
 
@@ -736,20 +724,16 @@ def main(argv=None):  # pylint: disable=unused-argument
                     # Saving to csv file for submission
                     num_rows = prediction_as_img.shape[0]
                     num_cols = prediction_as_img.shape[1]
-                    #rows_out = np.empty((0, 2))
                     for x in range(0, num_rows, const.IMG_PATCH_SIZE):
                         for y in range(0, num_cols, const.IMG_PATCH_SIZE):
                             id = str(i).zfill(3) + "_" + str(x) + "_" + str(y)
-                            #next_row = np.array([[id, str(prediction_as_img[y][x])]])
                             writer.writerow([id, str(prediction_as_img[y][x])])
-                            #rows_out = np.concatenate((rows_out, next_row))
-                    #writer.writerows(rows_out)
 
     # End profiling and save stats
     pr.disable()
     s = io.StringIO()
     sortby = 'cumulative'
-    stream = open('profile.txt', 'w');
+    stream = open('profile.txt', 'w')
     ps = pstats.Stats(pr, stream=stream).sort_stats(sortby)
     ps.print_stats()
 
@@ -757,5 +741,3 @@ def main(argv=None):  # pylint: disable=unused-argument
 if __name__ == '__main__':
     #main()
     tf.app.run()
-
-
