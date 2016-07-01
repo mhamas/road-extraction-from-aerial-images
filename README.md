@@ -14,6 +14,8 @@ The code in this repository trains a convolutional neural network and adds a pos
  * skimage
 
 ## Running
+**Warning:** running the code as-is requires around 100GB of memory.
+
 * Run `sh setup.sh` while in the project root folder to set up the necessary file structures (assumes a Bash shell).
 * Run `python run.py` while in the `src` folder to train the CNN, apply post-processing and generate predictions.
 * All results will be in the `results` folder, under `CNN_Output/`, `postprocessing_output/` and in `submission.csv`.
