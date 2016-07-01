@@ -1,8 +1,6 @@
 """
-
-This module provides helper functions to extract patches from images. This 
-includes data augmentation and mirror boundary conditions
-
+This module provides helper functions to extract patches from images. This includes data augmentation and mirror
+boundary conditions.
 """
 
 import os
@@ -19,7 +17,7 @@ def zero_center(patches):
         if not os.path.isdir(const.OBJECTS_PATH):            
             os.makedirs(const.OBJECTS_PATH)
         print("Computing mean patch")
-        mean_patch = np.mean(patches, axis = 0)
+        mean_patch = np.mean(patches, axis=0)
         print("Mean computed")
         np.save(const.PATCHES_MEAN_PATH, mean_patch)
         print("Mean patch saved to the disk.")
@@ -62,7 +60,7 @@ def augment_image(img, out_ls, num_of_transformations):
 def mirror_border(img, border_size):
     """ Pads an input image img with a border of size border_size using a mirror boundary condition """
     
-    if (len(img.shape) < 3):
+    if len(img.shape) < 3:
         # Binary image
         res_img = np.zeros((img.shape[0] + 2 * border_size, img.shape[1] + 2 * border_size))
     else:
@@ -98,8 +96,8 @@ def img_crop(im, patch_size, border_size, stride, num_of_transformations):
     imgheight = im.shape[1]
     is_single_channel = len(im.shape) < 3
 
-    for i in range(0,imgheight - context_size + 1, stride):
-        for j in range(0,imgwidth - context_size + 1, stride):
+    for i in range(0, imgheight - context_size + 1, stride):
+        for j in range(0, imgwidth - context_size + 1, stride):
             if is_single_channel:
                 # [1, patch_size, patch_size]
                 im_patch = [im[j:j+context_size, i:i+context_size]]
@@ -122,6 +120,3 @@ def label_img_crop(im, patch_size, stride, num_of_transformations):
     """ Crops a label image into patches """
     
     return img_crop(im, patch_size, 0, stride, num_of_transformations)
-
-
-

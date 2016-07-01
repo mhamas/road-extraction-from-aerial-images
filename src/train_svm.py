@@ -1,7 +1,6 @@
 """
 Provides methods to train a SVM for SVM-based post-processing of CNN predictions.
 (training takes 1-2 hours, depending on machine configuration)
-
 """
 
 import os
@@ -16,6 +15,7 @@ from sklearn.externals import joblib
 import patch_extraction_module as pem 
 import data_loading_module as dlm
 import constants as const
+
 
 def trainClassifier():
     """ Trains an SVM classifier to post-process the CNN output """
@@ -33,7 +33,9 @@ def trainClassifier():
     labelsCNN  = dlm.read_image_array(train_data_filename, num_images, "raw_satImage_%.3d_patches")
     
     for i in range(0, len(labelsCNN)):
-        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.POSTPRO_PATCH_SIZE, labelsCNN[i].shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
+        labelsCNN[i] = resize(labelsCNN[i], (labelsCNN[i].shape[0] // const.POSTPRO_PATCH_SIZE,
+                                             labelsCNN[i].shape[1] // const.POSTPRO_PATCH_SIZE),
+                              order=0, preserve_range=True)
         
     elapsed = time.time() - t
     print("Loading training data took: " + str(elapsed) + " s")
@@ -68,7 +70,8 @@ def trainClassifier():
     print("Training SVM took " + str(elapsed) + " s")
 
     # Evaluate model on training data
-    y_new = np.squeeze(np.asarray([np.ravel(np.squeeze(np.asarray(p))[const.POSTPRO_SVM_PATCH_SIZE // 2, const.POSTPRO_SVM_PATCH_SIZE // 2]) for p in patches]))
+    y_new = np.squeeze(np.asarray([np.ravel(np.squeeze(
+        np.asarray(p))[const.POSTPRO_SVM_PATCH_SIZE // 2, const.POSTPRO_SVM_PATCH_SIZE // 2])for p in patches]))
     error = np.sum((y - y_new) ** 2) / len(y_new)
     print("Training set accuracy: " + str(1 - error))
     
@@ -78,10 +81,11 @@ def trainClassifier():
     
     return classifier
 
+
 def getSVMClassifier():
     """ Returns a SVM classifier to post-process the predictions. Caches the learned SVM to disk """
 
-    fn = const.OBJECTS_PATH +"postprocessor.pkl"
+    fn = const.OBJECTS_PATH + "postprocessor.pkl"
     if not os.path.isfile(fn):        
         clf = trainClassifier()
         if not os.path.isdir(const.OBJECTS_PATH):
@@ -92,4 +96,3 @@ def getSVMClassifier():
         print("Loaded SVM")
 
     return clf
-

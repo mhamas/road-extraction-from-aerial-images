@@ -17,6 +17,7 @@ import constants as const
 from sklearn.decomposition import MiniBatchDictionaryLearning
 from sklearn.feature_extraction.image import extract_patches_2d
 
+
 def visualize_dictionary(V, patch_size):
     """ Visualizes the atoms in a learned dictionary V """
     plt.figure(figsize=(4.2, 4))
@@ -31,16 +32,17 @@ def visualize_dictionary(V, patch_size):
     plt.draw()
     plt.show()
 
+
 def train_dictionary(filename, patch_size, num_images):
     """ Trains a dictionary from the ground truth labels to denoise the CNN output """
-    showImages = False
+    show_images = False
                     
     # 1 Load all the ground truth images => convert them into lowres label images
     print('Extracting reference patches...')
     t0 = time()
     labels = dlm.extract_label_images(filename, num_images, const.POSTPRO_PATCH_SIZE, const.POSTPRO_PATCH_SIZE)
 
-    if (showImages):
+    if show_images:
         plt.figure()
         plt.title('Image')
         plt.imshow(labels[3], vmin=0, vmax=1, cmap=plt.cm.gray, interpolation='nearest')			 
@@ -64,23 +66,24 @@ def train_dictionary(filename, patch_size, num_images):
     print('done in %.2fs.' % dt)
     print('Trained on %d patches' % (len(data)))
     
-    if (showImages):
+    if show_images:
         visualize_dictionary(V, patch_size)
     return V
-    
+
+
 def get_dictionary():
     """ Returns a dictionary of prototypical patches of predictions. Caches the learned dictionary to disk """
     
     LOAD_DICT_CACHE = True
     CACHE_FILE_NAME = '../tmp/dict_cache.npy'
     loaded = False
-    if (LOAD_DICT_CACHE):
+    if LOAD_DICT_CACHE:
         if os.path.isfile(CACHE_FILE_NAME):
             D = np.load(CACHE_FILE_NAME)
             loaded = True
             print('Loaded dictionary from file')
-    		
-    if (not loaded):
+
+    if not loaded:
         fn = "../data/training/groundtruth/"
         num_images = 100 
         D = train_dictionary(fn, const.DICT_PATCH_SIZE, num_images)
