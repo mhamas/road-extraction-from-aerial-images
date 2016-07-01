@@ -10,5 +10,5 @@
 mkdir logs
 cd src
 bsub -n 8 -R "rusage[mem=8192]" -We 4:00 -oo "../logs/run_%J.out" \
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/ext/lib" $HOME/ext/lib/ld-2.23.so $HOME/.venv/bin/python3 model_taivo_test.py
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$HOME/ext/lib" $HOME/ext/lib/ld-2.23.so $HOME/.venv/bin/python3 model_large_context.py
 cd ..

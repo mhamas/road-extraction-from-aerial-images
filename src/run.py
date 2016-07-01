@@ -11,7 +11,7 @@ are not found cached on the disk, this script automatically trains them
 """
 import glob
 
-import model_taivo_test as cnn
+import model_large_context as cnn
 import postprocessing as pp
 from cilutil import upsampling
 
