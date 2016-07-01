@@ -1,3 +1,7 @@
+"""
+This script trains the final (non-baseline) CNN used in the project.
+"""
+
 import os
 import sys
 import matplotlib.image as mpimg
@@ -59,14 +63,17 @@ tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to
 FLAGS = tf.app.flags.FLAGS
 
 
-# predictions - Nx2 array for image where width * height = N
-#             - each cell contains 2 probabilities for 2 classes
-# labels      - array of same size as predicitons, 1 hot assignment
 def error_rate(predictions, labels):
+    """Calculate the error rate.
+    predictions - Nx2 array for image where width * height = N
+                - each cell contains 2 probabilities for 2 classes
+    labels      - array of same size as predicitons, 1 hot assignment
+    """
     return 100.0 - (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
 
 
 def initialization_check():
+    """Before running, check whether the given settings combination is allowed."""
     if VALIDATION_STEP % RECORDING_STEP != 0:
         print("Error: Validation step must be divisible by recording step.")
         sys.exit(1)
@@ -82,6 +89,7 @@ def initialization_check():
 
 
 def main(argv=None):  # pylint: disable=unused-argument
+    """Train the CNN and predict on the test and training sets."""
 
     # Start profiling
     pr = cProfile.Profile()
@@ -141,6 +149,7 @@ def main(argv=None):  # pylint: disable=unused-argument
     if BALANCE_SIZE_OF_CLASSES:
         ### AUXILIARY FUNCTION ###
         def num_of_datapoints_per_class():
+            """Count the number of datapoints in each class."""
             c0 = 0
             c1 = 0
             for i in range(len(train_labels)):
@@ -292,8 +301,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         print("Total num of params to learn: " + str(num_of_CNN_params_to_learn + num_of_FC_params_to_learn))
         print("----------------------------------------------\n")
 
-    # Get prediction for given input image
     def get_prediction(tf_session, img, stride):
+        """Get the CNN prediction for a given input image."""
         data = pem.zero_center(
             np.asarray(pem.input_img_crop(img, const.IMG_PATCH_SIZE, const.IMG_BORDER_SIZE, stride, 0)))
         data_node = tf.cast(tf.constant(data), tf.float32)
@@ -322,9 +331,9 @@ def main(argv=None):  # pylint: disable=unused-argument
 
         return prediction
 
-    # Get prediction overlaid on the original image for given input file
     def get_prediction_with_overlay(tf_session, input_path, output_path_overlay, output_path_raw,
                                     truth_input_path=None):
+        """Get the CNN prediction overlaid on the original image for a given input file."""
         ### AUXILIARY FUNCTION 0 ###
         def label_to_binary_img(imgwidth, imgheight, w, h, labels):
             array_labels = np.zeros([imgwidth, imgheight])
@@ -430,7 +439,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                           prediction_as_per_pixel_img)
         scipy.misc.imsave(output_path_raw + "_patches.png", prediction_as_img)
 
-        return (prediction, prediction_as_binary_img)
+        return prediction, prediction_as_binary_img
 
     def validate(validation_model, labels):
         print("\n --- Validation ---")
@@ -442,6 +451,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         return err
 
     def model(data, train=False):
+        """Define the CNN."""
         # CONV. LAYER 1
         conv1 = tf.nn.conv2d(data, conv1_weights, strides=[1, 1, 1, 1], padding='SAME')
         relu1 = tf.nn.relu(tf.nn.bias_add(conv1, conv1_biases))
@@ -479,8 +489,8 @@ def main(argv=None):  # pylint: disable=unused-argument
         ### FINAL ACTIVATION ###
         out = tf.sigmoid(tf.matmul(hidden, fc2_weights) + fc2_biases)
 
-        # Make an image summary for 4d tensor image with index idx
         def get_image_summary(img, idx=0):
+            """Make an image summary for 4d tensor image with index idx."""
             V = tf.slice(img, (0, 0, 0, idx), (1, -1, -1, 1))
             img_w = img.get_shape().as_list()[1]
             img_h = img.get_shape().as_list()[2]
