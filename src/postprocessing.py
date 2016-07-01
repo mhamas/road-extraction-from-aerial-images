@@ -1,3 +1,9 @@
+"""
+
+Provides the functions needed to apply post-processing to the CNN output
+
+"""
+
 import numpy as np
 import scipy
 
