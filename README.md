@@ -1,2 +1,21 @@
-# eth-cil-project
-ETH Computational Intelligence Lab
+# Road Extraction from Aerial Images
+Delio Vicini, Matej Hamas, Taivo Pungas (Department of Computer Science, ETH Zurich, Switzerland)
+
+The code in this repository trains a convolutional neural network and adds a post-processing layer, for the task of detecting roads in satellite images. See project report [here](docs/report/main.pdf).
+
+## Dependencies
+* Python
+ * scipy
+ * numpy
+ * scikit-learn
+ * tensorflow
+ * matplotlib
+ * Pillow
+ * skimage
+
+## Running
+* Run `sh setup.sh` while in the project root folder to set up the necessary file structures (assumes a Bash shell).
+* Run `python run.py` while in the `src` folder to train the CNN, apply post-processing and generate predictions.
+* All results will be in the `results` folder.
+
+The project has been tested and is guaranteed to run on Python 3.5.0.
