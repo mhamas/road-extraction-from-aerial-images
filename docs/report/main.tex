@@ -209,19 +209,23 @@ Adding dictionary based denoising on top of this baseline CNN improves the predi
 The accuracy gain we achieve using our improved CNN is mostly due to the increased patch size. The larger context reveals much more information about the currently processed image patch. The result shown in Figure \ref{fig:results_3} shows much less noise than the output from the baseline CNN. Despite the improved architecture, there are still many mispredictions. 
 
 \par
-Our post-processing algorithm manages to further reduce error. The result in Figure \ref{fig:results_4} shows that almost all noise has been removed. There are still some cases where the post-processing is not very successful. It has a strong bias for roads aligned with the image coordinate axis, since the test set is dominated by these road directions. We experimented with rotating the training images by $ 45\degree $, but did not succeed in improving the prediction accuracy. Our current algorithm often predicts diagonal roads too thin or even removes them partially; an example of this is shown in Figure \ref{fig:post_processing}. This is the most prominent limitation of our current approach.
+Our post-processing algorithm manages to further reduce error. The result in Figure \ref{fig:results_4} shows that almost all noise has been removed. There are still some cases where the post-processing is not very successful. It has a strong bias for roads aligned with the image coordinate axis, since the test set is dominated by these road directions. We experimented with rotating the training images by $ 45\degree $, but did not succeed in improving the prediction accuracy. Our current algorithm often predicts diagonal roads too thin or even removes them partially; an example of this is shown in Figure \ref{fig:post_processing}. This is the most prominent limitation of our current approach. Note, that also the CNN itself does not deal well with diagonal roads.
 
 \begin{figure}
 	\centering
-	\begin{subfigure}[t]{.2\textwidth}
-		\includegraphics[width=1\textwidth]{figs/context_size/full_img}
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/post_processing/input}
+		\caption{Input image}
+	\end{subfigure}
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/post_processing/cnn}
 		\caption{Raw CNN predictions}
 	\end{subfigure}
-	\begin{subfigure}[t]{.2\textwidth}
-		\includegraphics[width=1\textwidth]{figs/context_size/context16}
+	\begin{subfigure}[t]{.15\textwidth}
+		\includegraphics[width=1\textwidth]{figs/post_processing/postpro}
 		\caption{Post-processed predictions}
 	\end{subfigure}
-	\caption{Post-processing results for diagonal roads. \todo{ADD PROPER PICTURES}}
+	\caption{Results for diagonal roads. Note, that both the CNN and the post-processing algorithm do not deal well with diagonal roads.}
 	\label{fig:post_processing}
 \end{figure}
 
