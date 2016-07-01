@@ -18,4 +18,4 @@ The code in this repository trains a convolutional neural network and adds a pos
 * Run `python run.py` while in the `src` folder to train the CNN, apply post-processing and generate predictions.
 * All results will be in the `results` folder.
 
-The project has been tested and is guaranteed to run on Python 3.5.0.
+The project has been tested with and is guaranteed to run on Python 3.5.0.
