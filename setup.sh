@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Create data directories
+mkdir -p data/test_set/downsampled
+mkdir -p data/training/groundtruth/downsampled
+mkdir -p data/training/images/downsampled
+
 # Create output directories
 mkdir -p results/CNN_Output/test/raw
 mkdir -p results/CNN_Output/test/high_res_raw
