@@ -15,34 +15,9 @@ import train_svm as svm_train
 import denoise_svm as svm_denoise
 
 
-# labels - 1 hot array of labels for each patch
-# returned mask has size (# of patches) x (# of patches)
-# (e.g. 25x25 for 16x16 patches and 400x400 image)
-def prediction_to_mask(labels, width, height):
-    mask = np.zeros([height, width])
-    idx = 0
-    for i in range(0,height):
-        for j in range(0,width):
-            mask[i][j] = 0 if labels[idx][0] > 0.5 else 1
-            idx = idx + 1
-    return mask
-
-# Inverse of prediction_to_mask
-def mask_to_prediction(mask):
-    (height, width) = mask.shape;
-    prediction = np.zeros([height * width, 2])
-    idx = 0
-    for i in range(0,height):
-        for j in range(0,width):
-            if mask[i][j] == 1:
-                prediction[idx][1] = 1
-            else:
-                prediction[idx][0] = 1
-            idx = idx + 1
-    return prediction
-
-# Basic 4 connectivity neighbour filtering
 def set_to_zero_if_no_neighbours(mask):
+    """Basic 4 connectivity neighbour filtering."""
+
     (height, width) = mask.shape
     for i in range(0, height):
         for j in range(0, width):
@@ -70,41 +45,24 @@ def set_to_zero_if_no_neighbours(mask):
             if mask[i][j] == 0 and num_of_one_neighbours >= 3:
                 mask[i][j] = 1
     return mask
-
-# prediction - 1 hot array of labels for each patch
-def postprocess_prediction(prediction,  width, height):
-    mask = prediction_to_mask(prediction, width, height);
-    # scipy.misc.imsave('test_before.png', mask)
-    mask = set_to_zero_if_no_neighbours(mask)
-    # mask = scipy.signal.medfilt(mask, 3)
-    # scipy.misc.imsave('test_after.png', mask)
-    
-    # dictionary based denoising
-#    D = dict_train.get_dictionary()
-#    mask = np.zeros(mask.shape)
-#    mask[dict_denoise.denoiseImg(prediction[:][1], D) >= 0.5] = 1
-    
-    # simple low rank approximation
-#    mask = np.zeros(mask.shape)
-#    mask[lowrank_denoise.denoiseImg(prediction[:][1]) >= 0.5] = 1
-    
-    return mask_to_prediction(mask)
     
 def apply_postprocessing(img, dictionary, svm):
+    """Applies post-processing to a given image."""
     # resize img to have 1 px for each 16 x 16 patch
     img = resize(img, (img.shape[0] // const.POSTPRO_PATCH_SIZE, img.shape[1] // const.POSTPRO_PATCH_SIZE), order=0, preserve_range=True)        
     img2 = np.zeros(img.shape)
-    img2[img >= 0.5] = 1 # this would be the prediction without post processing
+    img2[img >= 0.5] = 1 # this would be the prediction without post processing    
     
-    
+    # simple 4-neighborhood filtering
 #    finalOutput = set_to_zero_if_no_neighbours(img2)
-    
+     
+    # SVM-based post-processing
     result = svm_denoise.denoiseImg(img, svm)
     result = svm_denoise.denoiseImg(result, svm)
     finalOutput = np.zeros(img.shape)
     finalOutput[result >= 0.5] = 1         
     
-
+    # dictionary-based denoising
 #    result = dict_denoise.denoiseImg(img, dictionary)
 #    finalOutput = np.zeros(img.shape)
 #    finalOutput[result >= 0.5] = 1            
@@ -112,6 +70,7 @@ def apply_postprocessing(img, dictionary, svm):
     return finalOutput
     
 def create_submission_file(images):
+    """Creates submission.csv from an array of images with per-patch predictions."""
     prefix_results = const.RESULTS_PATH + "/"
     if not os.path.isdir(prefix_results):
         os.mkdir(prefix_results)
@@ -135,6 +94,8 @@ def create_submission_file(images):
         csvfile.close()    
         
 def generate_output():  
+    """Applies post-processing to the CNN output. Output predictions are saved as images and submission.csv is also created"""
+    
     postpro_fn = const.RESULTS_PATH + "/postprocessing_output"
 
     # test set

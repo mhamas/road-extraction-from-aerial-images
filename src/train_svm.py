@@ -1,27 +1,29 @@
+"""
+Provides methods to train a SVM for SVM-based post-processing of CNN predictions.
+(training takes 1-2 hours, depending on machine configuration)
+
+"""
+
 import os
 import time as time
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from skimage.transform import resize
 from sklearn import svm
 from sklearn.externals import joblib
-from sklearn.neural_network import BernoulliRBM
-from sklearn.pipeline import Pipeline
 
 import patch_extraction_module as pem 
 import data_loading_module as dlm
 import constants as const
 
-# POSTPROCESSING: Trains an SVM classifier to postprocess the CNN output
-
 def trainClassifier():
+    """ Trains an SVM classifier to post-process the CNN output """
+    
     print("Training SVM classifier (might take a while)")    
     t = time.time()
    
     train_data_filename = "../results/CNN_Output/training/raw/"
-    #train_data_filename = "../data/training/images/"
     train_labels_filename = "../data/training/groundtruth/"
     
     num_images = 100
@@ -35,18 +37,12 @@ def trainClassifier():
         
     elapsed = time.time() - t
     print("Loading training data took: " + str(elapsed) + " s")
-    #plt.figure()
-    #plt.imshow(labelsCNN[0])
-    #plt.show()
 
     # extract patches and corresponding groundtruth center value
     t = time.time()
     patch_size = 1
     border_size = const.POSTPRO_SVM_PATCH_SIZE // 2
-#    stride = 2
-#    nTransforms = 3
-    
-# OLD SETTINGS
+
     stride = 1
     nTransforms = 5
     
@@ -65,15 +61,7 @@ def trainClassifier():
     print("Fitting SVM...")
     t = time.time()
     
-    classifier = svm.SVC()
-    
-#    svc_model = svm.SVC()    
-#    rbm = BernoulliRBM(random_state=0, verbose=True)
-#    classifier = Pipeline(steps=[('rbm', rbm), ('svm', svc_model)])    
-#    rbm.learning_rate = 0.06
-#    rbm.n_iter = 20
-#    rbm.n_components = 50
-    
+    classifier = svm.SVC()    
     classifier.fit(X, y)
     
     elapsed = time.time() - t
@@ -91,6 +79,8 @@ def trainClassifier():
     return classifier
 
 def getSVMClassifier():
+    """ Returns a SVM classifier to post-process the predictions. Caches the learned SVM to disk """
+
     fn = const.OBJECTS_PATH +"postprocessor.pkl"
     if not os.path.isfile(fn):        
         clf = trainClassifier()

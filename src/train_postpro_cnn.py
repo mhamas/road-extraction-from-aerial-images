@@ -1,3 +1,9 @@
+"""
+Provides methods to train a CNN for post-processing predictions.
+(not an improvement over SVM-based post-processing)
+
+"""
+
 import os
 import sys
 
@@ -53,20 +59,16 @@ VISUALIZE_NUM = -1 # -1 means visualize all
 RUN_ON_TEST_SET = True
 TEST_SIZE = 50
 
-#tf.app.flags.DEFINE_string("train_dir", ROOT_DIR + "tmp/", """Directory where to write event logs and checkpoint.""")
-#
-#FLAGS = tf.app.flags.FLAGS
-
 TRAIN_DIR = ROOT_DIR + "tmp/"
 
-# predictions - Nx2 array for image where width * height = N
-#             - each cell contains 2 probabilities for 2 classes
-# labels      - array of same size as predicitons, 1 hot assignment
 def error_rate(predictions, labels):
+    """ Computes the error rate for a set of predictions and groundtruth labels """
     return 100.0 - (100.0 * np.sum(np.argmax(predictions, 1) == np.argmax(labels, 1)) / predictions.shape[0])
 
 
-def train_model():
+def train_and_apply_model():
+    """ Trains a CNN model to post-process predictions and applies it to the raw CNN output. """
+    
     ######################
     ### INITIALIZATION ###
     ######################

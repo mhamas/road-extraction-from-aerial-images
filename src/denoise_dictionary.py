@@ -3,6 +3,8 @@ from sklearn.decomposition import SparseCoder
 import constants as const
 
 def denoiseImg(img, D):
+    """ Denoises prediction patches img using the dictionary D """
+    
     imgwidth = img.shape[0]
     imgheight = img.shape[1]
     stride = 1 # denoise overlapping patches

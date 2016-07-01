@@ -1,3 +1,9 @@
+"""
+Provides methods to train a dictionary for dictionary-based denoising of predictions.
+This code is used for the second baseline in the evaluation of our method.
+
+"""
+
 from time import time
 
 import os
@@ -12,6 +18,7 @@ from sklearn.decomposition import MiniBatchDictionaryLearning
 from sklearn.feature_extraction.image import extract_patches_2d
 
 def visualize_dictionary(V, patch_size):
+    """ Visualizes the atoms in a learned dictionary V """
     plt.figure(figsize=(4.2, 4))
     for i, comp in enumerate(V[:100]):
         plt.subplot(10, 10, i + 1)
@@ -24,8 +31,8 @@ def visualize_dictionary(V, patch_size):
     plt.draw()
     plt.show()
 
-# trains a dictionary from the ground truth labels to denoise the CNN output
 def train_dictionary(filename, patch_size, num_images):
+    """ Trains a dictionary from the ground truth labels to denoise the CNN output """
     showImages = False
                     
     # 1 Load all the ground truth images => convert them into lowres label images
@@ -62,6 +69,8 @@ def train_dictionary(filename, patch_size, num_images):
     return V
     
 def get_dictionary():
+    """ Returns a dictionary of prototypical patches of predictions. Caches the learned dictionary to disk """
+    
     LOAD_DICT_CACHE = True
     CACHE_FILE_NAME = '../tmp/dict_cache.npy'
     loaded = False
