@@ -1,5 +1,5 @@
 # Road Extraction from Aerial Images
-Delio Vicini, Matej Hamas, Taivo Pungas (Department of Computer Science, ETH Zurich, Switzerland)
+[Delio Vicini](https://github.com/dvicini), [Matej Hamas](https://github.com/mato93), [Taivo Pungas](https://github.com/taivop) (Department of Computer Science, ETH Zurich, Switzerland)
 
 The code in this repository trains a convolutional neural network and adds a post-processing layer, for the task of detecting roads in satellite images. See project report [here](docs/report/main.pdf).
 
