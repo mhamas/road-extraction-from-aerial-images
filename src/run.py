@@ -11,9 +11,9 @@ are not found cached on the disk, this script automatically trains them
 """
 import glob
 
-import model_taivo_test as cnn
+import model_large_context as cnn
 import postprocessing as pp
-from cilutil import upsampling
+from cilutil import resizing
 
 # Train CNN
 cnn.main()
@@ -23,8 +23,8 @@ UPSAMPLE = True
 if UPSAMPLE:
     training_filenames = glob.glob("../results/CNN_Output/training/*/*.png")
     test_filenames = glob.glob("../results/CNN_Output/test/*/*.png")
-    upsampling.upsample_training(training_filenames)
-    upsampling.upsample_test(test_filenames)
+    resizing.upsample_training(training_filenames)
+    resizing.upsample_test(test_filenames)
 
 # Apply post processing to CNN output
 pp.generate_output()

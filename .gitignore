@@ -73,3 +73,13 @@ target/
 .idea
 
 src/profile.txt
+
+# report latex
+*.synctex.gz
+*.log
+*.aux
+*.bbl
+*.bib~
+*.blg
+docs/report/main.pdf
+docs/report/main.out

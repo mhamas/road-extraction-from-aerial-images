@@ -1,62 +1,66 @@
-import sys
+"""
+This module provides helper functions to extract patches from images. This includes data augmentation and mirror
+boundary conditions.
+"""
+
 import os
 import numpy as np
-import scipy
 import constants as const
 
+
 def zero_center(patches):
-    #print("Zero centering patches")
+    """ Zero centers patch data and caches their mean value to disk """    
+
     if os.path.isfile(const.PATCHES_MEAN_PATH + ".npy"):
-        #print("Loading mean patch from the disk")
         mean_patch = np.load(const.PATCHES_MEAN_PATH + ".npy")  
     else:
         if not os.path.isdir(const.OBJECTS_PATH):            
             os.makedirs(const.OBJECTS_PATH)
         print("Computing mean patch")
-        mean_patch = np.mean(patches, axis = 0)
+        mean_patch = np.mean(patches, axis=0)
         print("Mean computed")
         np.save(const.PATCHES_MEAN_PATH, mean_patch)
         print("Mean patch saved to the disk.")
-    #print("Subtracting mean patch from patches")
+
     return patches - mean_patch
+    
 
 def augment_image(img, out_ls, num_of_transformations):
+    """ Augments the input image img by a number of transformations (rotations by 90° and flips). 
+        out_ls --- list of output images
+        num_of_transformations --- number of transformations to compute """
+        
     img2 = np.fliplr(img)
 
     out_ls.append(img)
-    # scipy.misc.imsave('01img.jpg', img)
 
     if num_of_transformations > 0:
         tmp = np.rot90(img)
         out_ls.append(tmp)
-        # scipy.misc.imsave('01rot90.jpg', tmp)
     if num_of_transformations > 1:
         tmp = np.rot90(np.rot90(img))
         out_ls.append(tmp)
-        # scipy.misc.imsave('01rot180.jpg', tmp)
     if num_of_transformations > 2:
         tmp = np.rot90(np.rot90(np.rot90(img)))
         out_ls.append(tmp)
-        # scipy.misc.imsave('01rot270.jpg', tmp)
     
     if num_of_transformations > 3:
         tmp = np.rot90(img2)
         out_ls.append(tmp)
-        # scipy.misc.imsave('02rot90.jpg', tmp)
     if num_of_transformations > 4:
         tmp = np.rot90(np.rot90(img2))
         out_ls.append(tmp)
-        # scipy.misc.imsave('02rot180.jpg', tmp)
     if num_of_transformations > 5:
         tmp = np.rot90(np.rot90(np.rot90(img2)))
         out_ls.append(tmp)
-        # scipy.misc.imsave('02rot270.jpg', tmp)
     if num_of_transformations > 6:
         out_ls.append(img2)
-        # scipy.misc.imsave('02img.jpg', img2)
+        
 
 def mirror_border(img, border_size):
-    if (len(img.shape) < 3):
+    """ Pads an input image img with a border of size border_size using a mirror boundary condition """
+    
+    if len(img.shape) < 3:
         # Binary image
         res_img = np.zeros((img.shape[0] + 2 * border_size, img.shape[1] + 2 * border_size))
     else:
@@ -82,6 +86,8 @@ def mirror_border(img, border_size):
 
 
 def img_crop(im, patch_size, border_size, stride, num_of_transformations):
+    """ Extracts patches of size patch_size and stride stride from an image img """
+    
     context_size = patch_size + 2 * border_size    
     im = mirror_border(im, border_size)
     
@@ -90,8 +96,8 @@ def img_crop(im, patch_size, border_size, stride, num_of_transformations):
     imgheight = im.shape[1]
     is_single_channel = len(im.shape) < 3
 
-    for i in range(0,imgheight - context_size + 1, stride):
-        for j in range(0,imgwidth - context_size + 1, stride):
+    for i in range(0, imgheight - context_size + 1, stride):
+        for j in range(0, imgwidth - context_size + 1, stride):
             if is_single_channel:
                 # [1, patch_size, patch_size]
                 im_patch = [im[j:j+context_size, i:i+context_size]]
@@ -102,12 +108,15 @@ def img_crop(im, patch_size, border_size, stride, num_of_transformations):
             augment_image(im_patch, list_patches, num_of_transformations)
 
     return list_patches
+    
 
 def input_img_crop(im, patch_size, border_size, stride, num_of_transformations):
+    """ Crops an input image. Direct alias of img_crop """
+    
     return img_crop(im, patch_size, border_size, stride, num_of_transformations)
+    
 
 def label_img_crop(im, patch_size, stride, num_of_transformations):
+    """ Crops a label image into patches """
+    
     return img_crop(im, patch_size, 0, stride, num_of_transformations)
-
-
-

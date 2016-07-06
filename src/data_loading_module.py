@@ -1,3 +1,6 @@
+"""
+This module provides a variety of functions to load training data.
+"""
 import os
 import matplotlib.image as mpimg
 import numpy as np
@@ -109,8 +112,8 @@ def pixel_to_patch_labels(im, patch_size, stride):
     return output
 
 
-def extract_label_images(filename_base, num_images, patch_size=const.IMG_PATCH_SIZE, patch_stride=const.IMG_PATCH_STRIDE,
-                         img_base_name="satImage_%.3d"):
+def extract_label_images(filename_base, num_images, patch_size=const.IMG_PATCH_SIZE,
+                         patch_stride=const.IMG_PATCH_STRIDE, img_base_name="satImage_%.3d"):
     """Extract labels from ground truth as label images."""
     gt_imgs = []
     for i in range(1, num_images+1):
